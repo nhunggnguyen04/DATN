@@ -1,0 +1,7 @@
+pandas
+sqlalchemy
+pyodbc
+python-dotenv
+dbt-core
+dbt-sqlserver
+apache-airflow-providers-microsoft-mssql
