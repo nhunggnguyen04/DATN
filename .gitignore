@@ -11,3 +11,4 @@ dbt_bank/logs/
 
 .vscode/
 .DS_Store
+.history
