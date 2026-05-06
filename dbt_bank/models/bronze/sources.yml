@@ -1,0 +1,11 @@
+version: 2
+
+sources:
+  - name: bronze
+    database: DATN
+    schema: bronze
+    tables:
+      - name: users_mns
+      - name: cards_mns
+      - name: transactions
+      - name: mcc_codes_mns

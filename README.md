@@ -47,3 +47,6 @@ Bước 4: So sánh TDY với PDY
 Bước 5: Ghi kết quả vào MNS
 Bước 6: Silver chỉ đọc MNS
 
+### 3.Silver
+3.1. Staging 
+
