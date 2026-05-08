@@ -1,0 +1,37 @@
+name: 'dbt_bank'
+version: '1.0.0'
+config-version: 2
+
+profile: 'dbt_bank'
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  dbt_bank:
+    bronze:
+      +schema: bronze
+      +materialized: table
+
+    silver:
+      +schema: silver
+
+      hubs:
+        +materialized: incremental
+
+      links:
+        +materialized: incremental
+
+      satellites:
+        +materialized: incremental
+
+    gold:
+      +schema: gold
+      +materialized: table
