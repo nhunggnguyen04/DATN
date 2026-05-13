@@ -1,0 +1,22 @@
+version: 2
+
+models:
+  - name: gold_id_card_daily_stats
+    description: "Gold model: daily aggregate metrics for generated CCCD/ID card documents."
+    columns:
+      - name: run_date
+        tests:
+          - not_null
+      - name: document_count
+        tests:
+          - not_null
+
+  - name: gold_savings_book_daily_stats
+    description: "Gold model: daily aggregate metrics for generated savings book documents."
+    columns:
+      - name: run_date
+        tests:
+          - not_null
+      - name: document_count
+        tests:
+          - not_null

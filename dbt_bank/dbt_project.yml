@@ -35,3 +35,8 @@ models:
     gold:
       +schema: gold
       +materialized: table
+
+seeds:
+  dbt_bank:
+    +schema: bronze
+    +quote_columns: false

@@ -5,3 +5,8 @@ python-dotenv
 dbt-core
 dbt-sqlserver
 apache-airflow-providers-microsoft-mssql
+numpy
+pillow
+reportlab
+faker
+pyodbc

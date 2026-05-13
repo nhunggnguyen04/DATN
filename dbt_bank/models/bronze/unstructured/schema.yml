@@ -1,0 +1,40 @@
+version: 2
+
+models:
+  - name: bronze_id_card_documents
+    description: "Bronze table for CCCD/ID card document metadata ingested from the manifest."
+    columns:
+      - name: document_id
+        tests:
+          - not_null
+      - name: entity_id
+        tests:
+          - not_null
+      - name: doc_type
+        tests:
+          - not_null
+      - name: file_path
+        tests:
+          - not_null
+      - name: sha256
+        tests:
+          - not_null
+
+  - name: bronze_savings_book_documents
+    description: "Bronze table for savings book document metadata ingested from the manifest."
+    columns:
+      - name: document_id
+        tests:
+          - not_null
+      - name: entity_id
+        tests:
+          - not_null
+      - name: doc_type
+        tests:
+          - not_null
+      - name: file_path
+        tests:
+          - not_null
+      - name: sha256
+        tests:
+          - not_null
