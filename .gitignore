@@ -13,4 +13,6 @@ dbt_bank/logs/
 .DS_Store
 .history/
 **/.history/
+**/.venv_ocr/
+.venv_ocr/
 
