@@ -100,10 +100,29 @@ Quy trình mỗi run:
 6. Silver đọc từ MNS
 ```
 
-#### Manifest Documents
+#### Hybrid Approach cho Unstructured Data
 
-Manifest CSV là file metadata cho tài liệu unstructured:
+Pipeline xử lý dữ liệu phi cấu trúc theo mô hình **Hybrid** với 2 luồng song song:
 
+```
+┌───────────────────────────────────────────────────────────────────┐
+│  METADATA FLOW                                                     │
+│  documents_tdy/pdy/mns (file_path, sha256, size, ...)             │
+└───────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌───────────────────────────────────────────────────────────────────┐
+│  CONTENT FLOW                                                      │
+│  ocr_results_tdy/pdy/mns (full_name, demo_id_no, ocr_text, ...)   │
+└───────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌───────────────────────────────────────────────────────────────────┐
+│  COMBINED MNS: Metadata (I/U) + Content (I/U) → Silver/Gold       │
+└───────────────────────────────────────────────────────────────────┘
+```
+
+**Bảng `documents_tdy/pdy/mns`** (Metadata):
 | Column | Mô tả |
 |--------|-------|
 | `document_id` | UUID duy nhất |
@@ -111,8 +130,30 @@ Manifest CSV là file metadata cho tài liệu unstructured:
 | `entity_id` | ID liên kết (user_id) |
 | `doc_type` | Loại tài liệu (id_card, savings_book) |
 | `file_path` | Đường dẫn đến file |
-| `sha256` | Hash kiểm tra thay đổi |
+| `sha256` | Hash kiểm tra thay đổi file |
+| `file_size_bytes` | Kích thước file |
 | `run_date` | Ngày chạy job |
+
+**Bảng `ocr_results_tdy/pdy/mns`** (Extraction Results):
+| Column | Mô tả |
+|--------|-------|
+| `document_id` | UUID duy nhất (FK to documents) |
+| `ocr_engine` | PaddleOCR |
+| `ocr_avg_score` | Confidence trung bình |
+| `ocr_text` | Raw OCR output |
+| `ocr_text_hash` | Hash để detect content changes |
+| `full_name` | Tên đầy đủ |
+| `demo_id_no` | Số CCCD |
+| `date_of_birth` | Ngày sinh |
+| `sex` | Giới tính |
+| `extraction_confidence` | Độ tin cậy extraction |
+| `status` | 'ok' hoặc 'error' |
+
+**Lợi ích Hybrid Approach:**
+- Phát hiện thay đổi cả metadata (file) VÀ content (OCR results)
+- Tránh OCR thừa: chỉ chạy khi file mới/thay đổi
+- Re-extraction linh hoạt với model mới
+- Full audit trail cho cả metadata và content
 
 #### Vị trí lưu trữ
 
@@ -222,24 +263,100 @@ SQL Server (users, cards, transactions, mcc_codes)
     Power BI / Analytics
 ```
 
-### 5.2. Unstructured Data Flow
+### 5.2. Unstructured Data Flow (Hybrid Approach)
 
 ```
-Images Folder (CCCD, savings_book)
-            ↓
-    Scan & Generate Manifest
-            ↓
-Manifest CSV (documents_YYYY-MM-DD.csv)
-            ↓
-   Load Bronze Documents
-            ↓
-    PaddleOCR Processing
-            ↓
-  Extract Info (name, id, dob, ...)
-            ↓
-  Silver → Gold (dbt models)
-            ↓
-    Power BI / Analytics
+┌──────────────────────────────────────────────────────────────────┐
+│                    METADATA FLOW                                  │
+├──────────────────────────────────────────────────────────────────┤
+│  Images → Build Manifest → documents_tdy → documents_mns         │
+│           (SHA256)         (metadata)   (I/U flags)              │
+└──────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                    CONTENT FLOW                                   │
+├──────────────────────────────────────────────────────────────────┤
+│  Manifest → PaddleOCR → Extract Fields → ocr_results_tdy         │
+│                         (name, dob, id)    (content)              │
+│                                    ↓                              │
+│                         ocr_results_mns (I/U by hash)             │
+└──────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                    COMBINED MNS                                   │
+├──────────────────────────────────────────────────────────────────┤
+│  Merge: documents_mns + ocr_results_mns → Silver (Data Vault)    │
+│                                    ↓                              │
+│                                  Gold                             │
+│                                    ↓                              │
+│                           Power BI / Analytics                    │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+#### Chi tiết các bước
+
+**Cách 1: Chạy toàn bộ pipeline tự động**
+```bash
+# Chạy full pipeline cho id_card
+python scripts/extract/run_unstructured_pipeline.py --run-date 2026-05-13 --doc-type id_card
+
+# Chạy full pipeline cho savings_book
+python scripts/extract/run_unstructured_pipeline.py --run-date 2026-05-13 --doc-type savings_book
+
+# Options:
+# --skip-db-update  : Chỉ build manifest, không load vào DB
+# --skip-ocr        : Skips OCR extraction
+# --skip-dbt        : Skips dbt transform
+```
+
+**Cách 2: Chạy từng bước thủ công**
+
+**Bước 1: Build manifest**
+```bash
+python scripts/build_unstructured_manifest_from_files.py \
+  --run-date 2026-05-13 --doc-type id_card \
+  --unstructured-root data/unstructured \
+  --out data/unstructured/manifests/documents_2026-05-13_id_card.csv
+```
+
+**Bước 2: Load metadata vào documents_tdy**
+```bash
+python scripts/extract/load_bronze_documents.py \
+  data/unstructured/manifests/documents_2026-05-13_id_card.csv
+```
+
+**Bước 3: OCR Extraction**
+```bash
+python scripts/extract/ocr_extract_id_card.py \
+  --manifest data/unstructured/manifests/documents_2026-05-13_id_card.csv \
+  --run-date 2026-05-13
+```
+
+**Bước 4: Load OCR results vào ocr_results_tdy**
+```bash
+python scripts/extract/load_bronze_ocr_results.py \
+  --input data/unstructured/extracted/id_card_extractions_2026-05-13.csv
+```
+
+**Bước 5: Compute MNS**
+```bash
+# Metadata MNS (documents)
+python scripts/extract/documents_mns.py
+
+# Content MNS (ocr_results)
+python scripts/extract/ocr_results_mns.py
+```
+
+**Bước 6: dbt Transform**
+```bash
+cd dbt_bank && dbt run
+```
+
+**Bước 7: Archive (Move TDY to PDY)**
+```bash
+python scripts/extract/move_tdy_to_pdy.py
 ```
 
 ---

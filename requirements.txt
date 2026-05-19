@@ -1,12 +1,31 @@
-pandas
-sqlalchemy
-pyodbc
-python-dotenv
-dbt-core
-dbt-sqlserver
-apache-airflow-providers-microsoft-mssql
-numpy
-pillow
-reportlab
-faker
-pyodbc
+# Core dependencies
+numpy>=1.26.0
+pandas>=2.0.0
+sqlalchemy>=2.0.0
+pyodbc>=5.0.0
+python-dotenv>=1.0.0
+
+# Data generation and reporting
+pillow>=10.0.0
+reportlab>=4.0.0
+faker>=20.0.0
+
+# dbt for data transformation
+dbt-core>=1.7.0
+dbt-sqlserver>=1.7.0
+
+# Airflow for orchestration
+apache-airflow>=2.8.0
+apache-airflow-providers-microsoft-mssql>=3.5.0
+
+# OCR dependencies (PaddleOCR)
+# Note: Install separately in .venv_ocr due to large size
+# paddlepaddle>=2.6.0
+# paddleocr>=2.7.0
+
+# Development and utilities
+click>=8.0.0
+altair>=5.0.0
+
+# Additional dependencies for data generation
+openpyxl>=3.1.0
