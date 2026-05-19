@@ -355,11 +355,11 @@ def main() -> None:
     p.add_argument(
         "--out",
         default="",
-        help="Output CSV path (default: output/unstructured/extracted/id_card_extractions_<run_date>.csv)",
+        help="Output CSV path (default: data/unstructured/extracted/id_card_extractions_<run_date>.csv)",
     )
     args = p.parse_args()
 
-    manifest_path = Path(args.manifest) if args.manifest else _find_latest_manifest(PROJECT_ROOT / "output" / "manifests")
+    manifest_path = Path(args.manifest) if args.manifest else _find_latest_manifest(PROJECT_ROOT / "data" / "unstructured" / "manifests")
     if not manifest_path.exists():
         raise FileNotFoundError(f"Manifest not found: {manifest_path}")
 
@@ -383,7 +383,7 @@ def main() -> None:
 
     effective_run_date = run_date_filter or (rows[0].get("run_date") or "") or "unknown"
     out_path = Path(args.out) if args.out else (
-        PROJECT_ROOT / "output" / "unstructured" / "extracted" / f"id_card_extractions_{effective_run_date}.csv"
+        PROJECT_ROOT / "data" / "unstructured" / "extracted" / f"id_card_extractions_{effective_run_date}.csv"
     )
     out_path.parent.mkdir(parents=True, exist_ok=True)
 

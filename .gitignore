@@ -16,3 +16,7 @@ dbt_bank/logs/
 **/.venv_ocr/
 .venv_ocr/
 
+# Data directories (large files)
+data/
+output/
+

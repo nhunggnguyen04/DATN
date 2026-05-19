@@ -18,8 +18,8 @@ load_dotenv()
 fake = Faker('vi_VN')
 
 
-DEFAULT_UNSTRUCTURED_ROOT = Path(os.getenv("UNSTRUCTURED_ROOT", "output/unstructured"))
-DEFAULT_MANIFEST_DIR = Path(os.getenv("UNSTRUCTURED_MANIFEST_DIR", "output/manifests"))
+DEFAULT_UNSTRUCTURED_ROOT = Path(os.getenv("UNSTRUCTURED_ROOT", "data/unstructured"))
+DEFAULT_MANIFEST_DIR = Path(os.getenv("UNSTRUCTURED_MANIFEST_DIR", "data/unstructured/manifests"))
 
 # =====================
 # KẾT NỐI 2 SERVER

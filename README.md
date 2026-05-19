@@ -114,6 +114,12 @@ Manifest CSV là file metadata cho tài liệu unstructured:
 | `sha256` | Hash kiểm tra thay đổi |
 | `run_date` | Ngày chạy job |
 
+#### Vị trí lưu trữ
+
+- **Documents**: `data/unstructured/documents/` - Ảnh gốc (CCCD, sổ tiết kiệm)
+- **Manifests**: `data/unstructured/manifests/` - File manifest CSV
+- **Extracted**: `data/unstructured/extracted/` - Kết quả OCR extraction
+
 ### 2.3. Silver Layer (Data Vault)
 
 Mô hình Data Vault gồm:
@@ -175,6 +181,14 @@ DATN/
 │       ├── db_connection.py
 │       ├── logger.py
 │       └── hash_utils.py
+├── data/
+│   └── unstructured/              # Dữ liệu unstructured (images, manifests, OCR results)
+│       ├── documents/             # Raw images (CCCD, savings_book)
+│       │   └── doc_type=...
+│       │       └── run_date=...
+│       │           └── user_id=...
+│       ├── manifests/             # Manifest CSV files
+│       └── extracted/             # OCR extraction results
 ├── dbt_bank/                        # dbt project
 │   ├── models/
 │   │   ├── bronze/
@@ -183,11 +197,6 @@ DATN/
 │   ├── macros/
 │   ├── seeds/
 │   └── dbt_project.yml
-├── output/
-│   ├── manifests/                   # Manifest CSV files
-│   └── unstructured/
-│       ├── documents/               # Raw images
-│       └── extracted/               # OCR extraction results
 └── docs/
 ```
 
@@ -281,7 +290,7 @@ python scripts/extract/documents_mns.py
 
 3. **Chạy OCR**:
 ```bash
-python scripts/extract/ocr_extract_id_card.py --manifest output/manifests/documents_2026-05-13.csv
+python scripts/extract/ocr_extract_id_card.py --manifest data/unstructured/manifests/documents_2026-05-13.csv
 ```
 
 4. **Chạy dbt**:

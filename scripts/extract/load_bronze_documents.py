@@ -53,7 +53,7 @@ def _find_latest_manifest(manifest_dir: Path) -> Path:
 
 
 def main():
-    manifest_dir = PROJECT_ROOT / "output" / "manifests"
+    manifest_dir = PROJECT_ROOT / "data" / "unstructured" / "manifests"
     manifest_path = _find_latest_manifest(manifest_dir)
 
     if len(sys.argv) > 1:

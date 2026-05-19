@@ -107,7 +107,7 @@ def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--run-date", required=True, help="YYYY-MM-DD")
     p.add_argument("--doc-type", required=True, choices=["id_card", "savings_book"]) 
-    p.add_argument("--unstructured-root", default="output/unstructured")
+    p.add_argument("--unstructured-root", default="data/unstructured")
     p.add_argument("--out", required=True, help="Output CSV path")
     args = p.parse_args()
 
