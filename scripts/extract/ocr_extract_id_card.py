@@ -141,7 +141,13 @@ def _postprocess_fields(fields: dict) -> dict:
             out["demo_id_no"] = m.group(0)
 
     # Dates
-    date_re = re.compile(r"\b\d{2}/\d{2}/\d{4}\b")
+    date_re = re.compile(r"\d{2}/\d{2}/\d{4}")
+
+    def _expand_2digit_year(two_digit_year: int) -> int:
+        pivot = datetime.now(timezone.utc).year % 100
+        # If yy is greater than pivot (e.g. 97 > 26), assume 19yy; else 20yy.
+        return (1900 + two_digit_year) if two_digit_year > pivot else (2000 + two_digit_year)
+
     for k in ["date_of_birth", "issue_date", "expiry_date"]:
         v = out.get(k)
         if not v:
@@ -150,6 +156,22 @@ def _postprocess_fields(fields: dict) -> dict:
         m = date_re.search(v)
         if m:
             out[k] = m.group(0)
+            continue
+
+        # Be conservative: only expand 2-digit years for DOB.
+        if k != "date_of_birth":
+            continue
+
+        m2 = re.search(r"(\d{2})/(\d{2})/(\d{2})", v)
+        if m2:
+            dd, mm, yy = m2.group(1), m2.group(2), int(m2.group(3))
+            out[k] = f"{dd}/{mm}/{_expand_2digit_year(yy):04d}"
+            continue
+
+        m3 = re.search(r"(\d{2})(\d{2})/(\d{2})", v)
+        if m3:
+            dd, mm, yy = m3.group(1), m3.group(2), int(m3.group(3))
+            out[k] = f"{dd}/{mm}/{_expand_2digit_year(yy):04d}"
 
     # Sex
     sex = out.get("sex")
