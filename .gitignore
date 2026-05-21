@@ -15,6 +15,7 @@ dbt_bank/logs/
 **/.history/
 **/.venv_ocr/
 .venv_ocr/
+**/archived/
 
 # Data directories (large files)
 data/
