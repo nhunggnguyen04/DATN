@@ -366,16 +366,22 @@ python scripts/extract/move_tdy_to_pdy.py
 ### 6.1. Chuẩn bị môi trường
 
 ```bash
-# Tạo virtual environment
+# Khuyến nghị dùng 2 virtualenv tách biệt để tránh xung đột dependencies:
+# - .venv     : core pipeline (ETL + dbt + Airflow)
+# - .venv_ocr : OCR stack (PaddleOCR/PaddlePaddle)
+
+# 1) Core pipeline environment
 python -m venv .venv
 .venv\Scripts\activate
-
-# Cài dependencies
 pip install -r requirements.txt
 
-# OCR dependencies (nếu cần)
-cd .venv_ocr
-pip install -r requirements.txt
+# 2) OCR-only environment (Windows CPU)
+# Lưu ý: OCR stack có thể yêu cầu pin versions (paddlepaddle/numpy/PyYAML/protobuf)
+# khác với Airflow/dbt. Vì vậy nên cài OCR ở env riêng.
+deactivate
+python -m venv .venv_ocr
+.venv_ocr\Scripts\activate
+pip install -r requirements-ocr.txt
 ```
 
 ### 6.2. Cấu hình kết nối database

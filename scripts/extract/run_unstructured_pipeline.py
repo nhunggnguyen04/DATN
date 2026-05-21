@@ -20,11 +20,26 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
-def run_command(cmd: list[str], description: str) -> bool:
-    """Run a command and return success status."""
+def run_command(cmd: list[str], description: str, use_ocr_venv: bool = False) -> bool:
+    """Run a command and return success status.
+
+    Args:
+        use_ocr_venv: If True, use .venv_ocr interpreter for PaddleOCR dependencies
+    """
     print(f"\n{'=' * 60}")
     print(f"[{description}]")
     print(f"{'=' * 60}")
+
+    if use_ocr_venv:
+        # Switch to .venv_ocr interpreter
+        venv_ocr_python = PROJECT_ROOT / ".venv_ocr" / "Scripts" / "python.exe"
+        if venv_ocr_python.exists():
+            cmd[0] = str(venv_ocr_python)
+            print(f"Using OCR venv: {venv_ocr_python}")
+        else:
+            print(f"WARNING: .venv_ocr not found at {venv_ocr_python}")
+            print("Make sure to create .venv_ocr and install requirements-ocr.txt")
+
     print(f"Running: {' '.join(cmd)}")
 
     result = subprocess.run(cmd, cwd=PROJECT_ROOT, capture_output=False)
@@ -85,7 +100,7 @@ def main():
             print("ERROR: Load documents failed. Stopping.")
             return 1
 
-    # Step 4: Run OCR extraction
+    # Step 4: Run OCR extraction (use .venv_ocr)
     if not args.skip_ocr:
         extraction_path = PROJECT_ROOT / "data" / "unstructured" / "extracted" / f"{doc_type}_extractions_{run_date}.csv"
 
@@ -96,7 +111,8 @@ def main():
                 "--run-date", run_date,
                 "--out", str(extraction_path)
             ],
-            f"Step 4: OCR extraction for {doc_type}"
+            f"Step 4: OCR extraction for {doc_type}",
+            use_ocr_venv=True  # <<< IMPORTANT: use .venv_ocr
         ):
             print("WARNING: OCR extraction failed. Continuing with partial data...")
 

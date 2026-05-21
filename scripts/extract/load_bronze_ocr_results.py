@@ -56,7 +56,11 @@ def main() -> None:
     print("Computing OCR text hashes...")
     df["ocr_text_hash"] = df["ocr_text"].apply(compute_sha256_hash)
 
-    # Normalize data types
+    # Normalize data types to match SQL Server schema
+    # - run_date: DATE
+    # - processed_at: DATETIME
+    # - ocr_avg_score/extraction_confidence: DECIMAL(5,4)
+    # - date_of_birth/issue_date/expiry_date: DATE (often emitted as dd/mm/yyyy)
     def normalize_run_date(val):
         if pd.isna(val) or val == "":
             return None
@@ -69,6 +73,23 @@ def main() -> None:
 
     if "run_date" in df.columns:
         df["run_date"] = df["run_date"].apply(normalize_run_date)
+
+    # Coerce decimal-like columns
+    for col in ["ocr_avg_score", "extraction_confidence"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    # Coerce date fields that the OCR extractor outputs as dd/mm/yyyy
+    for col in ["date_of_birth", "issue_date", "expiry_date"]:
+        if col in df.columns:
+            parsed = pd.to_datetime(df[col], dayfirst=True, errors="coerce")
+            # store as Python date to bind cleanly into SQL DATE
+            df[col] = parsed.dt.date
+
+    # Coerce processed_at (ISO8601 with 'Z') -> naive datetime
+    if "processed_at" in df.columns:
+        parsed = pd.to_datetime(df["processed_at"], utc=True, errors="coerce")
+        df["processed_at"] = parsed.dt.tz_convert(None)
 
     # Override run_date if provided
     if run_date_override:

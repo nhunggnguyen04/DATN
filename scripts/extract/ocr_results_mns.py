@@ -136,33 +136,15 @@ def main():
         print("Run 'load_bronze_ocr_results.py' first to load new OCR results.")
         print("\nProceeding to move TDY to PDY anyway...")
 
-    with target_engine.begin() as conn:
-        # Step 1: Move TDY to PDY
-        print("\n[Step 1] Moving TDY to PDY...")
-        conn.exec_driver_sql(MOVE_TDY_TO_PDY_SQL)
-        print("  Done. TDY cleared, data moved to PDY.")
-
-        # Step 2: Compute MNS
-        print("\n[Step 2] Computing MNS...")
-        print("  Comparing PDY (previous) with current state...")
-
-        # Note: After MOVE_TDY_TO_PDY, TDY is empty.
-        # The MNS logic compares PDY (which now has the old data) with nothing.
-        # This means ALL records become 'D' (deleted).
-        #
-        # CORRECT FLOW:
-        # 1. MOVE_TDY_TO_PDY (move old TDY -> PDY, clear TDY)
-        # 2. Load NEW data into TDY
-        # 3. Compute MNS (compare TDY vs PDY)
-        #
-        # Since this script is called AFTER loading new data,
-        # we should NOT move TDY to PDY here. Instead, we assume:
-        # - PDY already has previous day's data
-        # - TDY has new data (just loaded)
-        # - We just compute MNS
-
-    # Re-implement: Don't move TDY to PDY in this script
-    # Just compute MNS based on existing TDY vs PDY
+    # CORRECT FLOW:
+    # This script is called AFTER loading new OCR data into TDY.
+    # We assume:
+    # - PDY already has previous day's OCR data (from earlier archival)
+    # - TDY has new OCR data (just loaded)
+    # - We ONLY compute MNS (compare TDY vs PDY)
+    #
+    # DO NOT move TDY to PDY here - that should happen at the END of the pipeline
+    # AFTER dbt transforms succeed.
 
     print("\n" + "=" * 60)
     print("Re-computing MNS (TDY vs PDY)...")
