@@ -15,7 +15,20 @@ import subprocess
 import sys
 from pathlib import Path
 
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+
+def list_available_run_dates(doc_root: Path) -> list[str]:
+    """Return available run_date values (YYYY-MM-DD) under a doc_type folder."""
+    if not doc_root.exists():
+        return []
+    run_date_dirs = sorted(
+        (p for p in doc_root.glob("run_date=*") if p.is_dir()),
+        key=lambda p: p.name,
+        reverse=True,
+    )
+    return [p.name.replace("run_date=", "", 1) for p in run_date_dirs]
 
 
 def run_command(cmd: list[str], description: str, use_ocr_venv: bool = False) -> bool:
@@ -70,8 +83,23 @@ def main():
         print(f"{'#'*60}")
 
         # Define paths
-        input_dir = PROJECT_ROOT / args.input_dir / f"doc_type={doc_type}" / f"run_date={run_date}"
+        doc_root = PROJECT_ROOT / args.input_dir / f"doc_type={doc_type}"
+        input_dir = doc_root / f"run_date={run_date}"
         output_csv = PROJECT_ROOT / "data" / "unstructured" / "extracted" / f"{doc_type}_extractions_{run_date}.csv"
+
+        if not input_dir.exists():
+            available = list_available_run_dates(doc_root)
+            print(f"ERROR: Input directory not found: {input_dir}")
+            if available:
+                print("Available run dates:")
+                for d in available[:10]:
+                    print(f"  - {d}")
+                if len(available) > 10:
+                    print(f"  ... ({len(available) - 10} more)")
+            else:
+                print(f"No run_date folders found under: {doc_root}")
+            success = False
+            continue
 
         # Step 1: OCR Extraction
         extraction_script = f"scripts/extract/ocr_extract_{doc_type}.py"
