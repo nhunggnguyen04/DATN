@@ -36,6 +36,11 @@ import cv2
 import numpy as np
 import pandas as pd
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 try:
     from paddleocr import PaddleOCR
 except ImportError:  # Allows --help and static checks without OCR extras installed.
@@ -51,7 +56,8 @@ sys.path.insert(0, str(PROJECT_ROOT))
 # ROI templates for FRONT side (normalized coordinates [0-1])
 FRONT_ROIS = [
     # DEMO front layout: narrow value bands to avoid bleeding into adjacent rows.
-    ("full_name", 0.510, 0.205, 0.925, 0.255),
+    # full_name: slightly taller to preserve diacritics/strokes
+    ("full_name", 0.510, 0.200, 0.925, 0.265),
     ("id_number", 0.510, 0.285, 0.925, 0.330),
     ("date_of_birth", 0.510, 0.355, 0.725, 0.400),
     ("sex", 0.510, 0.425, 0.635, 0.470),
@@ -73,7 +79,8 @@ OCR_LANG = "vi"  # Vietnamese if available, else 'en'
 DEFAULT_RUN_DATE = "2026-05-13"
 DEFAULT_INPUT_DIR = PROJECT_ROOT / "data" / "unstructured" / "documents" / "doc_type=id_card" / f"run_date={DEFAULT_RUN_DATE}"
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "unstructured" / "extracted"
-DEFAULT_OUTPUT_CSV = DEFAULT_OUTPUT_DIR / f"id_card_extracted_run_date={DEFAULT_RUN_DATE}.csv"
+DEFAULT_LIMIT = 10
+DEFAULT_OUTPUT_CSV = DEFAULT_OUTPUT_DIR / f"id_card_extracted_run_date={DEFAULT_RUN_DATE}_first{DEFAULT_LIMIT}.csv"
 
 
 # -----------------------------
@@ -603,6 +610,37 @@ def roi_crop_for_field(preprocessed: Dict[str, np.ndarray], field_name: str, box
     return base[y1:y2, x1:x2]
 
 
+def roi_crop_variants_for_field(
+    preprocessed: Dict[str, np.ndarray],
+    field_name: str,
+    box: Tuple[int, int, int, int],
+) -> List[Tuple[str, np.ndarray]]:
+    """Return multiple ROI variants for a field (used for hard cases like full_name)."""
+    x1, y1, x2, y2 = box
+
+    candidates: List[Tuple[str, np.ndarray]] = []
+
+    if field_name == "full_name":
+        for key in ("gray", "denoise", "sharpen", "clahe"):
+            base = preprocessed.get(key)
+            if base is None:
+                continue
+            roi = base[y1:y2, x1:x2]
+            if roi.size:
+                candidates.append((key, roi))
+        # Deduplicate by key order (keep first occurrence)
+        seen = set()
+        deduped: List[Tuple[str, np.ndarray]] = []
+        for k, roi in candidates:
+            if k in seen:
+                continue
+            seen.add(k)
+            deduped.append((k, roi))
+        return deduped
+
+    return [("default", roi_crop_for_field(preprocessed, field_name, box))]
+
+
 # -----------------------------
 # Step 6: OCR Text Extraction
 # -----------------------------
@@ -614,7 +652,8 @@ def init_ocr_engine(lang: str = OCR_LANG) -> Any:
             "PaddleOCR is not installed in this Python environment. "
             "Install OCR dependencies first, for example: pip install paddlepaddle==3.2.2 paddleocr"
         )
-    return PaddleOCR(lang=lang, use_textline_orientation=False)
+    # PP-OCRv3 tends to be more robust for missing vowels on small ROIs.
+    return PaddleOCR(lang=lang, ocr_version="PP-OCRv3", use_textline_orientation=False)
 
 
 def ocr_predict_text(ocr_engine: Any, img: np.ndarray) -> Tuple[str, Optional[float], int]:
@@ -963,6 +1002,69 @@ def is_plausible_field_value(field_name: str, text: str) -> bool:
     return True
 
 
+def _choose_best_text_candidate(field_name: str, candidates: List[Tuple[str, str, Optional[float]]]) -> Tuple[str, Optional[float]]:
+    """Pick best OCR candidate for a field based on heuristics + OCR score."""
+    best_text = ""
+    best_score: Optional[float] = None
+    best_key = (-1, -1, -1.0, -1)
+
+    for _src, raw_text, mean_score in candidates:
+        cleaned = clean_text(raw_text)
+        if field_name in {"full_name", "place_of_origin", "place_of_residence"}:
+            cleaned = strip_demo_watermark_text(cleaned)
+
+        corrected = correct_vietnamese_ocr_text(field_name, cleaned)
+        plausible = 1 if is_plausible_field_value(field_name, corrected) else 0
+        alpha_count = sum(ch.isalpha() for ch in corrected)
+        score_val = float(mean_score) if mean_score is not None else -1.0
+        length = len(corrected)
+
+        key = (plausible, alpha_count, score_val, length)
+        if key > best_key:
+            best_key = key
+            best_text = raw_text
+            best_score = mean_score
+
+    return best_text, best_score
+
+
+def ocr_predict_text_multi(
+    ocr_engine: Any,
+    field_name: str,
+    roi_variants: List[Tuple[str, np.ndarray]],
+) -> Tuple[str, Optional[float], str]:
+    """OCR a field using multiple ROI variants + upscaling and select the best result."""
+    candidates: List[Tuple[str, str, Optional[float]]] = []
+
+    for src, img in roi_variants:
+        if img is None or img.size == 0:
+            continue
+
+        # Pass 1: as-is
+        text, score, _ = ocr_predict_text(ocr_engine, img)
+        candidates.append((f"{src}", text, score))
+
+        # Pass 2: upscale (often helps missing vowels/diacritics on small ROIs)
+        try:
+            up = cv2.resize(img, None, fx=2.0, fy=2.0, interpolation=cv2.INTER_CUBIC)
+            text2, score2, _ = ocr_predict_text(ocr_engine, up)
+            candidates.append((f"{src}_x2", text2, score2))
+        except Exception:
+            pass
+
+    best_text, best_score = _choose_best_text_candidate(field_name, candidates)
+    best_src = "multi"
+    if candidates:
+        # Determine best source label (optional, for debugging)
+        best_text_norm = best_text
+        for src, t, s in candidates:
+            if t == best_text_norm and s == best_score:
+                best_src = src
+                break
+
+    return best_text, best_score, best_src
+
+
 # -----------------------------
 # Step 8: Field Parsing & Validation
 # -----------------------------
@@ -1210,6 +1312,15 @@ def process_single_image(
             raw_texts[field_name] = anchored_text
             conf_scores[field_name] = float(anchored_scores.get(field_name, 0.0))
 
+    # Prefer ROI-based full_name when it gives a longer cleaned result.
+    if "full_name" in roi_boxes:
+        variants = roi_crop_variants_for_field(preprocessed, "full_name", roi_boxes["full_name"])
+        roi_name_text, roi_name_score, _src = ocr_predict_text_multi(ocr_engine, "full_name", variants)
+        anchored_name_text = raw_texts.get("full_name", "")
+        if len(clean_text(strip_demo_watermark_text(roi_name_text))) > len(clean_text(strip_demo_watermark_text(anchored_name_text))):
+            raw_texts["full_name"] = roi_name_text
+            conf_scores["full_name"] = float(roi_name_score if roi_name_score is not None else 0.0)
+
     # ROI fallback only when needed
     for field_name, roi_img in roi_images.items():
         current_text = raw_texts.get(field_name, "")
@@ -1218,7 +1329,11 @@ def process_single_image(
         if current_field.is_valid and is_plausible_field_value(field_name, current_text):
             continue
 
-        roi_text, roi_score, _ = ocr_predict_text(ocr_engine, roi_img)
+        if field_name == "full_name":
+            variants = roi_crop_variants_for_field(preprocessed, field_name, roi_boxes[field_name])
+            roi_text, roi_score, _src = ocr_predict_text_multi(ocr_engine, field_name, variants)
+        else:
+            roi_text, roi_score, _ = ocr_predict_text(ocr_engine, roi_img)
         roi_field = parse_and_validate_field(field_name, roi_text, roi_score)
 
         # Prefer a valid ROI value; otherwise keep the more plausible / longer cleaned text.
@@ -1328,6 +1443,7 @@ def process_id_card_directory(
     run_date: str,
     output_csv: Path,
     lang: str = OCR_LANG,
+    limit: Optional[int] = DEFAULT_LIMIT,
 ) -> bool:
     """Batch process ID-card images and write one CSV row per source image."""
     img_extensions = ("*.jpg", "*.jpeg", "*.png", "*.tif", "*.tiff", "*.bmp", "*.webp")
@@ -1335,12 +1451,15 @@ def process_id_card_directory(
     for ext in img_extensions:
         img_paths.extend(input_dir.rglob(ext))
     img_paths = sorted(img_paths)
+    total_found = len(img_paths)
+    if limit is not None and limit > 0:
+        img_paths = img_paths[:limit]
 
     if not img_paths:
         print(f"ERROR: No images found in {input_dir}")
         return False
 
-    print(f"Found {len(img_paths)} images to process")
+    print(f"Found {total_found} images; processing {len(img_paths)}")
     print(f"Initializing PaddleOCR (lang={lang})...")
     ocr = init_ocr_engine(lang=lang)
 
@@ -1368,13 +1487,14 @@ def process_id_card_directory(
         df = df.sort_values(["status", "user_id", "image_path"], na_position="last")
 
     output_csv.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(output_csv, index=False, encoding="utf-8-sig")
-    print(f"\nSaved {len(df)} records to {output_csv}")
+    df.to_excel(output_csv.with_suffix('.xlsx'), index=False)
+    print(f"\nSaved {len(df)} records to {output_csv.with_suffix('.xlsx')}")
 
     print("\n" + "=" * 60)
     print("SUMMARY")
     print("=" * 60)
-    print(f"Total images found: {len(img_paths)}")
+    print(f"Total images found: {total_found}")
+    print(f"Images selected: {len(img_paths)}")
     print(f"Successful images: {len(results)}")
     print(f"Failed images: {len(img_paths) - len(results)}")
     valid_id = sum(1 for r in results if r.fields.get("id_number", FieldData("", "", None, False, "", None)).is_valid)
@@ -1387,9 +1507,9 @@ def process_id_card_directory(
 
 def main():
     parser = argparse.ArgumentParser(description='OCR Extraction for CCCD (ID Card)')
-    parser.add_argument("--input-dir", default=None, help="Directory containing images (recursively scanned)")
-    parser.add_argument("--run-date", default=DEFAULT_RUN_DATE, help="Run date (YYYY-MM-DD)")
-    parser.add_argument("--out", default=None, help="Output CSV path")
+    parser.add_argument("--input-dir", default=None, help="Directory containing images")
+    parser.add_argument("--run-date", default="2026-05-13", help="Run date (YYYY-MM-DD)")
+    parser.add_argument("--out", default=None, help="Output path")
     parser.add_argument("--lang", default=OCR_LANG, help=f"OCR language (default: {OCR_LANG})")
     args = parser.parse_args()
 
@@ -1398,30 +1518,43 @@ def main():
         if args.input_dir
         else PROJECT_ROOT / "data" / "unstructured" / "documents" / "doc_type=id_card" / f"run_date={args.run_date}"
     )
-    output_csv = (
-        Path(args.out)
-        if args.out
-        else PROJECT_ROOT / "data" / "unstructured" / "extracted" / f"id_card_extracted_run_date={args.run_date}.csv"
-    )
 
     if not input_dir.exists():
         print(f"ERROR: Input directory not found: {input_dir}")
         return 1
+
+    # User input for number of images
+    try:
+        user_input = input("Enter number of images to process (or press Enter for all): ").strip()
+        limit = int(user_input) if user_input else 0
+    except ValueError:
+        print("Invalid input. Processing all images.")
+        limit = 0
+
+    output_xlsx = (
+        Path(args.out).with_suffix('.xlsx')
+        if args.out
+        else PROJECT_ROOT / "data" / "unstructured" / "extracted" / f"id_card_extracted_run_date={args.run_date}.xlsx"
+    )
+
+    limit_val = None if limit == 0 else limit
 
     print("=" * 60)
     print("OCR EXTRACTION PIPELINE - CCCD")
     print("=" * 60)
     print(f"Input dir: {input_dir}")
     print(f"Run date: {args.run_date}")
-    print(f"Output: {output_csv}")
+    print(f"Output: {output_xlsx}")
+    print(f"Limit: {limit_val if limit_val is not None else 'all'}")
     print(f"OCR lang: {args.lang}")
     print("=" * 60)
 
     success = process_id_card_directory(
         input_dir=input_dir,
         run_date=args.run_date,
-        output_csv=output_csv,
+        output_csv=output_xlsx, # Function still named output_csv but we pass .xlsx path
         lang=args.lang,
+        limit=limit_val,
     )
 
     if success:

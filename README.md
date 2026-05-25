@@ -482,68 +482,109 @@ WHERE t.transaction_date >= '2026-05-01';
 
 ## 8. Database Schema
 
+> DDL đầy đủ: [scripts/sql/create_bronze_ocr_tables.sql](scripts/sql/create_bronze_ocr_tables.sql)
+>
+> Script load: [scripts/extract/load_bronze_unstructured.py](scripts/extract/load_bronze_unstructured.py)
+
+---
+
 ### `bronze.id_card_results`
 
-| Column | Type | Constraints |
-|--------|------|-------------|
-| id | INT | PK, IDENTITY |
-| document_id | NVARCHAR(100) | Unique, Indexed |
-| file_path | NVARCHAR(500) | |
-| run_date | DATE | Indexed |
-| user_id | INT | Indexed |
-| ocr_engine | NVARCHAR(50) | 'paddleocr' |
-| ocr_lang | NVARCHAR(10) | 'vi' |
-| ocr_avg_score | DECIMAL(5,4) | 0.0000 - 1.0000 |
-| ocr_raw_text | NVARCHAR(MAX) | JSON string |
-| full_name | NVARCHAR(200) | |
-| id_number | NVARCHAR(50) | 12 digits |
-| date_of_birth | DATE | |
-| sex | NVARCHAR(10) | 'Nam'/'Nữ' |
-| nationality | NVARCHAR(50) | |
-| place_of_origin | NVARCHAR(200) | |
-| place_of_residence | NVARCHAR(200) | |
-| issue_date | DATE | |
-| expiry_date | DATE | |
-| extraction_confidence | DECIMAL(5,4) | 0.0000 - 1.0000 |
-| processed_at | DATETIME2 | |
-| status | NVARCHAR(20) | 'ok'/'error'/'low_confidence' |
-| error_message | NVARCHAR(500) | |
+Lưu kết quả trích xuất thông tin từ ảnh CCCD (Căn cước công dân). Mỗi dòng tương ứng một ảnh của một user.
 
-Indexes:
-- `idx_run_date` ON bronze.id_card_results(run_date)
-- `idx_user_id` ON bronze.id_card_results(user_id)
-- `idx_status` ON bronze.id_card_results(status)
-- `idx_id_number` ON bronze.id_card_results(id_number)
+#### Nhóm 1 — Source tracking (theo dõi nguồn)
+
+| Cột | Kiểu | Mô tả | Ví dụ |
+|-----|------|-------|-------|
+| `id` | `BIGINT IDENTITY` | Surrogate key, PK tự tăng | `1` |
+| `file` | `NVARCHAR(200)` | Tên file ảnh | `"id_card_scan.jpg"` |
+| `file_path` | `NVARCHAR(500)` | Đường dẫn tuyệt đối đến ảnh gốc | `"E:\...\user_id=1\id_card_scan.jpg"` |
+| `run_date` | `DATE` | Ngày chạy pipeline — dùng làm partition key | `2026-05-25` |
+| `user_id` | `INT` | Trích từ tên thư mục `user_id=<n>` | `1` |
+
+#### Nhóm 2 — Thông tin trích xuất từ CCCD
+
+Các trường này được trích ra từ ảnh bằng OCR + template ROI matching. Lưu dạng `NVARCHAR` để giữ nguyên định dạng gốc (bronze không ép kiểu).
+
+| Cột | Kiểu | Mô tả | Ví dụ |
+|-----|------|-------|-------|
+| `full_name` | `NVARCHAR(300)` | Họ và tên | `"Nguyen Van An"` |
+| `id_number` | `NVARCHAR(50)` | Số CCCD (thường 12 chữ số, dữ liệu test có prefix `DEMO-`) | `"DEMO-33265923"` |
+| `date_of_birth` | `NVARCHAR(20)` | Ngày sinh, định dạng `DD/MM/YYYY` | `"10/12/1993"` |
+| `sex` | `NVARCHAR(20)` | Giới tính | `"Male"` / `"Female"` |
+| `nationality` | `NVARCHAR(100)` | Quốc tịch | `"Vietnam"` |
+| `place_of_origin` | `NVARCHAR(300)` | Quê quán | `"South John"` |
+| `place_of_residence` | `NVARCHAR(500)` | Nơi thường trú | `"0 Scott Wall, CO 59418"` |
+| `issue_date` | `NVARCHAR(20)` | Ngày cấp, định dạng `DD/MM/YYYY` | `"18/06/2021"` |
+| `expiry_date` | `NVARCHAR(20)` | Ngày hết hạn, định dạng `DD/MM/YYYY` | `"18/11/2028"` |
+
+> Ngày tháng giữ dạng string `DD/MM/YYYY` ở bronze — silver layer sẽ parse sang `DATE` khi cần.
+
+#### Nhóm 3 — Confidence scores (điểm tin cậy)
+
+Đánh giá chất lượng kết quả OCR ở 3 cấp độ khác nhau, tất cả trong khoảng `[0.0 – 1.0]`.
+
+| Cột | Kiểu | Ý nghĩa |
+|-----|------|---------|
+| `ocr_confidence` | `FLOAT` | Độ tin cậy của engine OCR (PaddleOCR recognition score) |
+| `parse_confidence` | `FLOAT` | Độ tin cậy của bước parse/validate từng trường |
+| `final_confidence` | `FLOAT` | Điểm tổng hợp cuối = kết hợp `ocr_confidence` và `parse_confidence` |
+| `plausible_fields` | `INT` | Số trường có giá trị hợp lệ trong tổng 9 trường (0–9) |
+
+#### Nhóm 4 — Audit
+
+| Cột | Kiểu | Mô tả |
+|-----|------|-------|
+| `_loaded_at` | `DATETIME2 DEFAULT SYSUTCDATETIME()` | Thời điểm load vào DB (UTC) |
+
+**Indexes:** `IX_id_card_results_run_date (run_date)`, `IX_id_card_results_user_id (user_id)`
+
+---
 
 ### `bronze.savings_book_results`
 
-| Column | Type | Constraints |
-|--------|------|-------------|
-| id | INT | PK, IDENTITY |
-| document_id | NVARCHAR(100) | Unique, Indexed |
-| file_path | NVARCHAR(500) | |
-| run_date | DATE | Indexed |
-| user_id | INT | Indexed |
-| ocr_engine | NVARCHAR(50) | 'paddleocr' |
-| ocr_lang | NVARCHAR(10) | 'vi' |
-| ocr_avg_score | DECIMAL(5,4) | |
-| ocr_raw_text | NVARCHAR(MAX) | JSON |
-| account_number | NVARCHAR(50) | |
-| account_holder | NVARCHAR(200) | |
-| account_type | NVARCHAR(100) | |
-| opening_date | DATE | |
-| balance | DECIMAL(18,2) | |
-| interest_rate | DECIMAL(5,2) | % |
-| extraction_confidence | DECIMAL(5,4) | |
-| processed_at | DATETIME2 | |
-| status | NVARCHAR(20) | 'ok'/'error'/'low_confidence' |
-| error_message | NVARCHAR(500) | |
+Lưu kết quả trích xuất thông tin từ ảnh sổ tiết kiệm. Mỗi dòng là một giao dịch/trang sổ của một user.
 
-Indexes:
-- `idx_run_date` ON bronze.savings_book_results(run_date)
-- `idx_user_id` ON bronze.savings_book_results(user_id)
-- `idx_status` ON bronze.savings_book_results(status)
-- `idx_account_number` ON bronze.savings_book_results(account_number)
+#### Nhóm 1 — Source tracking (theo dõi nguồn)
+
+| Cột | Kiểu | Mô tả | Ví dụ |
+|-----|------|-------|-------|
+| `id` | `BIGINT IDENTITY` | Surrogate key, PK tự tăng | `1` |
+| `file` | `NVARCHAR(200)` | Tên file ảnh | `"savings_book_scan.jpg"` |
+| `file_path` | `NVARCHAR(500)` | Đường dẫn tuyệt đối đến ảnh gốc | `"E:\...\user_id=1\savings_book_scan.jpg"` |
+| `run_date` | `DATE` | Ngày chạy pipeline — dùng làm partition key | `2026-05-25` |
+| `user_id` | `INT` | Trích từ tên thư mục `user_id=<n>` | `1` |
+
+#### Nhóm 2 — Thông tin trích xuất từ sổ tiết kiệm
+
+| Cột | Kiểu | Mô tả | Ví dụ |
+|-----|------|-------|-------|
+| `transaction_date` | `NVARCHAR(20)` | Ngày giao dịch, định dạng `DD/MM/YYYY` | `"20/09/2024"` |
+| `description` | `NVARCHAR(300)` | Mô tả loại giao dịch | `"Account opening"` |
+| `transaction_code` | `NVARCHAR(20)` | Mã giao dịch viết tắt | `"OPN"` |
+| `transaction_amount` | `NVARCHAR(50)` | Số tiền giao dịch, giữ string vì có dấu phẩy | `"117,136"` |
+| `balance` | `NVARCHAR(50)` | Số dư sau giao dịch, giữ string ở bronze | `"117,136"` |
+| `interest_rate` | `NVARCHAR(20)` | Lãi suất áp dụng, giữ string ở bronze | `"6.5%"` |
+| `signature` | `NVARCHAR(200)` | Tên người ký trên sổ | `"Christopher Johnson"` |
+
+> `transaction_amount`, `balance`, `interest_rate` lưu `NVARCHAR` vì OCR trả về chuỗi có dấu phẩy/ký hiệu (`"117,136"`, `"6.5%"`). Silver layer sẽ parse sang số khi cần.
+
+#### Nhóm 3 — Confidence scores (điểm tin cậy)
+
+| Cột | Kiểu | Ý nghĩa |
+|-----|------|---------|
+| `ocr_confidence` | `FLOAT` | Độ tin cậy của engine OCR |
+| `parse_confidence` | `FLOAT` | Độ tin cậy của bước parse/validate |
+| `final_confidence` | `FLOAT` | Điểm tổng hợp cuối |
+| `plausible_fields` | `INT` | Số trường có giá trị hợp lệ (0–7) |
+
+#### Nhóm 4 — Audit
+
+| Cột | Kiểu | Mô tả |
+|-----|------|-------|
+| `_loaded_at` | `DATETIME2 DEFAULT SYSUTCDATETIME()` | Thời điểm load vào DB (UTC) |
+
+**Indexes:** `IX_savings_book_results_run_date (run_date)`, `IX_savings_book_results_user_id (user_id)`
 
 ---
 

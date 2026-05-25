@@ -16,6 +16,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 load_dotenv()
 fake = Faker('vi_VN')
+fake_en = Faker('en_US')
 
 
 DEFAULT_UNSTRUCTURED_ROOT = Path(os.getenv("UNSTRUCTURED_ROOT", "data/unstructured"))
@@ -200,20 +201,20 @@ def generate_savings_book_scan(
     interest_rate: float | None = None,
     signature_text: str | None = None,
 ) -> dict:
-    issue_date = fake.date_between('-2y', 'today')
+    issue_date = fake_en.date_between('-2y', 'today')
     expiry_date = issue_date + timedelta(days=random.choice([180, 365, 730]))
     fields = {
-        "Họ và tên": fake.name(),
-        "Số CCCD": fake.numerify("0##########"),
-        "Số tài khoản": fake.numerify("################"),
-        "Số tiền gửi": f"{balance:,.0f} VND",
-        "Lãi suất": f"{random.uniform(4.5, 7.2):.1f}%/năm",
-        "Ngày mở": issue_date.strftime("%d/%m/%Y"),
-        "Ngày đáo hạn": expiry_date.strftime("%d/%m/%Y"),
-        "Chi nhánh": fake.city(),
+        "Full name": fake_en.name(),
+        "Demo ID number": fake_en.numerify("DEMO-########"),
+        "Account number": fake_en.numerify("################"),
+        "Deposit amount": f"{balance:,.0f} VND",
+        "Interest rate": f"{random.uniform(4.5, 7.2):.1f}%/year",
+        "Opening date": issue_date.strftime("%d/%m/%Y"),
+        "Maturity date": expiry_date.strftime("%d/%m/%Y"),
+        "Branch": fake_en.city(),
     }
 
-    customer_name = fields["Họ và tên"]
+    customer_name = fields["Full name"]
 
     base_dir = (
         DEFAULT_UNSTRUCTURED_ROOT
@@ -283,12 +284,12 @@ def generate_savings_book_scan(
         draw.line([cx, table_top, cx, table_top + header_h], fill=(40, 40, 40), width=2)
 
     headers = [
-        ("Ngày", "Date"),
-        ("Mã", "Code"),
-        ("Số tiền giao dịch", "Transaction amount"),
-        ("Số dư", "Balance"),
-        ("Lãi suất", "IR"),
-        ("Chữ ký", "Signature"),
+        ("Date", ""),
+        ("Code", ""),
+        ("Transaction", "Amount"),
+        ("Balance", ""),
+        ("Interest", "Rate"),
+        ("Signature", ""),
     ]
     for i, (vn, en) in enumerate(headers):
         hx0, hx1 = col_x[i], col_x[i + 1]
@@ -307,10 +308,10 @@ def generate_savings_book_scan(
     amount_open = float(txn_amount) if txn_amount is not None else float(balance)
     bal_after = float(balance_after) if balance_after is not None else float(amount_open)
     ir_val = float(interest_rate) if interest_rate is not None else random.uniform(4.5, 7.2)
-    ir = f"{ir_val:.1f}%/Năm"
+    ir = f"{ir_val:.1f}%/Year"
 
     draw.text((col_x[0] + 12, row1_top + 18), date_open, font=row_font, fill=(0, 0, 0))
-    draw.text((col_x[0] + 12, row1_top + 70), "Mở tài khoản", font=row_font, fill=(0, 0, 0))
+    draw.text((col_x[0] + 12, row1_top + 70), "Account opening", font=row_font, fill=(0, 0, 0))
 
     draw.text((col_x[1] + 12, row1_top + 18), code_open, font=row_font_bold, fill=(0, 0, 0))
 
@@ -337,12 +338,14 @@ def generate_savings_book_scan(
 
     # Footer notes
     footer_y = table_bottom + 40
-    draw.text((table_left + 10, footer_y), "• OPN: Mở tài khoản", fill=(0, 0, 0))
-    draw.text((table_left + 10, footer_y + 50), "• IPY: Trả lãi", fill=(0, 0, 0))
-    draw.text((table_left + 520, footer_y), "• RNW: Gia hạn", fill=(0, 0, 0))
-    draw.text((table_left + 520, footer_y + 50), "• CLS: Đóng tài khoản", fill=(0, 0, 0))
-    draw.text((table_left + 1040, footer_y), "• ECL: Đóng sớm", fill=(0, 0, 0))
-    draw.text((table_left + 1040, footer_y + 50), "• OCL: Đóng quá hạn", fill=(0, 0, 0))
+    footer_font = _load_font(26, bold=False)
+    footer_gap = 62
+    draw.text((table_left + 10, footer_y), "- OPN: Account opening", font=footer_font, fill=(0, 0, 0))
+    draw.text((table_left + 10, footer_y + footer_gap), "- IPY: Interest payment", font=footer_font, fill=(0, 0, 0))
+    draw.text((table_left + 520, footer_y), "- RNW: Renewal", font=footer_font, fill=(0, 0, 0))
+    draw.text((table_left + 520, footer_y + footer_gap), "- CLS: Account closure", font=footer_font, fill=(0, 0, 0))
+    draw.text((table_left + 1040, footer_y), "- ECL: Early closure", font=footer_font, fill=(0, 0, 0))
+    draw.text((table_left + 1040, footer_y + footer_gap), "- OCL: Overdue closure", font=footer_font, fill=(0, 0, 0))
 
     page = _scanify_image(
         page,
@@ -390,17 +393,28 @@ def generate_id_card_scan(user_id: int, run_date: str) -> dict:
 
     # IMPORTANT: This is a DEMO ID card for testing only.
     # It intentionally does NOT match real CCCD layout/graphics.
-    full_name = fake.name().upper()
-    dob = fake.date_of_birth(minimum_age=18, maximum_age=70).strftime('%d/%m/%Y')
-    demo_id_no = fake.numerify('DEMO-########')
-    sex = random.choice(["Nam", "Nữ"])
-    nationality = "Việt Nam"
-    origin = fake.city()
-    residence = fake.address().replace("\n", ", ")
-    city = fake.city()
+    full_name = fake_en.name().upper()
+    dob = fake_en.date_of_birth(minimum_age=18, maximum_age=70).strftime('%d/%m/%Y')
+    demo_id_no = fake_en.numerify('DEMO-########')
+    sex = random.choice(["Male", "Female"])
+    nationality = "Vietnam"
+    origin = fake_en.city()
+    residence = fake_en.address().replace("\n", ", ")
+    city = fake_en.city()
     address = residence
-    issue_date = fake.date_between('-5y', 'today').strftime('%d/%m/%Y')
-    expiry_date = fake.date_between('today', '+5y').strftime('%d/%m/%Y')
+    issue_date = fake_en.date_between('-5y', 'today').strftime('%d/%m/%Y')
+    expiry_date = fake_en.date_between('today', '+5y').strftime('%d/%m/%Y')
+    fields_manifest = {
+        "full_name": full_name,
+        "id_number": demo_id_no,
+        "date_of_birth": dob,
+        "sex": sex,
+        "nationality": nationality,
+        "place_of_origin": origin,
+        "place_of_residence": residence,
+        "issue_date": issue_date,
+        "expiry_date": expiry_date,
+    }
 
     img = Image.new('RGB', (1400, 900), color=(245, 246, 248))
     img = _add_diagonal_watermark(img, "SAMPLE / DEMO – NOT A REAL ID")
@@ -417,8 +431,8 @@ def generate_id_card_scan(user_id: int, run_date: str) -> dict:
     draw.text((60, 60), "DEMO CITIZEN ID CARD", font=title_font, fill=(255, 255, 255))
     vn_font = _load_font(22, bold=True)
     vn_small = _load_font(20, bold=False)
-    draw.text((60, 108), "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM", font=vn_font, fill=(220, 230, 245))
-    draw.text((60, 132), "Độc lập - Tự do - Hạnh phúc", font=vn_small, fill=(220, 230, 245))
+    draw.text((60, 108), "SOCIALIST REPUBLIC OF VIETNAM", font=vn_font, fill=(220, 230, 245))
+    draw.text((60, 132), "Independence - Freedom - Happiness", font=vn_small, fill=(220, 230, 245))
 
     # Neutral DEMO seal (not an official emblem)
     seal_center = (1310, 95)
@@ -480,7 +494,7 @@ def generate_id_card_scan(user_id: int, run_date: str) -> dict:
         ("SEX", sex),
         ("NATIONALITY", nationality),
         ("PLACE OF ORIGIN", origin),
-        ("PLACE OF RESIDENCE", residence[:44] + ("…" if len(residence) > 44 else "")),
+        ("PLACE OF RESIDENCE", residence[:44] + ("..." if len(residence) > 44 else "")),
         ("ISSUE DATE", issue_date),
         ("EXPIRY DATE", expiry_date),
     ]
@@ -520,7 +534,7 @@ def generate_id_card_scan(user_id: int, run_date: str) -> dict:
         "source": "ai_generated",
         "sha256": sha256,
         "file_size_bytes": file_size,
-        "ocr_text": None,
+        "ocr_text": json.dumps(fields_manifest, ensure_ascii=False),
         "run_date": run_date,
     }
 
@@ -560,10 +574,22 @@ def _write_manifest(manifest_dir: Path, run_date: str, rows: list[dict]) -> Path
         "ocr_text",
         "run_date",
     ]
+    merged_rows: dict[str, dict] = {}
+    if manifest_path.exists():
+        with manifest_path.open("r", newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                key = row.get("document_id") or f"{row.get('doc_type')}:{row.get('entity_id')}:{row.get('file_path')}"
+                merged_rows[key] = row
+
+    for row in rows:
+        key = row.get("document_id") or f"{row.get('doc_type')}:{row.get('entity_id')}:{row.get('file_path')}"
+        merged_rows[key] = {k: row.get(k) for k in fieldnames}
+
     with manifest_path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
-        for row in rows:
+        for row in merged_rows.values():
             writer.writerow({k: row.get(k) for k in fieldnames})
     return manifest_path
 
