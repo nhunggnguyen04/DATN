@@ -1,0 +1,108 @@
+version: 2
+
+# ── Satellites theo silver_layer_design.md ────────────────────────────────────
+
+models:
+
+  # ── SCD Type 2 ──────────────────────────────────────────────────────────────
+
+  - name: sat_customer_profile
+    description: >
+      SCD Type 2 — lịch sử thay đổi thông tin khách hàng (demographics + financials).
+      Pre_hook đóng record cũ khi flag U có hashdiff thay đổi hoặc flag D.
+      Source: bronze.users_mns (flag I, U).
+    columns:
+      - name: hk_customer
+        description: "FK → hub_customer. Hash MD5 của users_mns.id"
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('hub_customer')
+                field: hk_customer
+      - name: effective_from
+        description: "PK (part 2). Thời điểm record bắt đầu có hiệu lực"
+        tests: [not_null]
+      - name: effective_to
+        description: "'9999-12-31' = active; giá trị khác = đã đóng"
+        tests: [not_null]
+      - name: hashdiff
+        description: "Hash MD5 của toàn bộ descriptive attributes"
+        tests: [not_null]
+      - name: current_age
+        tests: [not_null]
+      - name: credit_score
+        tests: [not_null]
+      - name: record_source
+        tests: [not_null]
+
+  - name: sat_card_detail
+    description: >
+      SCD Type 2 — lịch sử thay đổi thông tin thẻ (credit_limit, expires, v.v.).
+      KHÔNG chứa client_id — quan hệ card-customer nằm trong link_customer_card.
+      Source: bronze.cards_mns (flag I, U).
+    columns:
+      - name: hk_card
+        description: "FK → hub_card. Hash MD5 của cards_mns.id"
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('hub_card')
+                field: hk_card
+      - name: effective_from
+        tests: [not_null]
+      - name: effective_to
+        tests: [not_null]
+      - name: hashdiff
+        tests: [not_null]
+      - name: record_source
+        tests: [not_null]
+
+  # ── SCD Type 1 ──────────────────────────────────────────────────────────────
+
+  - name: sat_transaction_detail
+    description: >
+      SCD Type 1 — chi tiết giao dịch bất biến (amount, use_chip, merchant location, errors).
+      merchant_city/state/zip đặt ở đây vì Bronze không có bảng merchants riêng.
+      Source: bronze.transactions_mns (flag I, U).
+    columns:
+      - name: hk_transaction
+        description: "PK + FK → hub_transaction. Hash MD5 của transactions_mns.id"
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('hub_transaction')
+                field: hk_transaction
+      - name: transaction_datetime
+        tests: [not_null]
+      - name: amount
+        tests: [not_null]
+      - name: load_datetime
+        tests: [not_null]
+      - name: record_source
+        tests: [not_null]
+
+  - name: sat_mcc_detail
+    description: >
+      SCD Type 1 — mô tả MCC code (Merchant Category Code).
+      MERGE overwrites description nếu thay đổi. Flag D bị bỏ qua.
+      Source: bronze.mcc_codes_mns (flag I, U).
+    columns:
+      - name: hk_mcc
+        description: "PK + FK → hub_mcc. Hash MD5 của mcc_codes_mns.mcc_id"
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('hub_mcc')
+                field: hk_mcc
+      - name: description
+        tests: [not_null]
+      - name: load_datetime
+        tests: [not_null]
+      - name: record_source
+        tests: [not_null]

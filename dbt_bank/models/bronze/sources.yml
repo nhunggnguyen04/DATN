@@ -5,7 +5,14 @@ sources:
     database: DATN
     schema: bronze
     tables:
+      # ── Snapshot hiện tại (dùng cho ref tables) ────────────────────────────
+      - name: mcc_codes_tdy
+
+      # ── MNS change-set (id + operation_flag: I/U/D) ────────────────────────
       - name: users_mns
       - name: cards_mns
-      - name: transactions
+      - name: transactions_mns
       - name: mcc_codes_mns
+
+      # ── Current snapshot tables used to enrich MNS (join on id) ───────────
+      - name: transactions_tdy

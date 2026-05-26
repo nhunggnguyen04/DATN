@@ -1,0 +1,64 @@
+version: 2
+
+models:
+  - name: hub_customer
+    description: "Hub lưu business key của khách hàng — id từ banking.users"
+    columns:
+      - name: hk_customer
+        description: "Hash key MD5 của customer_id"
+        tests: [not_null, unique]
+      - name: customer_id
+        description: "Business key: id từ bronze.users_mns"
+        tests: [not_null]
+      - name: load_datetime
+        tests: [not_null]
+      - name: record_source
+        tests: [not_null]
+
+  - name: hub_card
+    description: "Hub lưu business key của thẻ ngân hàng — id từ banking.cards"
+    columns:
+      - name: hk_card
+        description: "Hash key MD5 của card_id"
+        tests: [not_null, unique]
+      - name: card_id
+        description: "Business key: id từ bronze.cards_mns"
+        tests: [not_null]
+      - name: load_datetime
+        tests: [not_null]
+
+  - name: hub_transaction
+    description: "Hub lưu business key của giao dịch — id từ banking.transactions"
+    columns:
+      - name: hk_transaction
+        description: "Hash key MD5 của transaction_id"
+        tests: [not_null, unique]
+      - name: transaction_id
+        description: "Business key: id từ bronze.transactions_mns"
+        tests: [not_null]
+      - name: load_datetime
+        tests: [not_null]
+
+  - name: hub_merchant
+    description: "Hub lưu business key của điểm giao dịch — merchant_id từ banking.transactions"
+    columns:
+      - name: hk_merchant
+        description: "Hash key MD5 của merchant_id"
+        tests: [not_null, unique]
+      - name: merchant_id
+        description: "Business key: merchant_id từ bronze.transactions_mns"
+        tests: [not_null]
+      - name: load_datetime
+        tests: [not_null]
+
+  - name: hub_mcc
+    description: "Hub lưu business key của MCC code — mcc_id từ banking.mcc_codes"
+    columns:
+      - name: hk_mcc
+        description: "Hash key MD5 của mcc_id"
+        tests: [not_null, unique]
+      - name: mcc_id
+        description: "Business key: mcc_id từ bronze.mcc_codes_mns"
+        tests: [not_null]
+      - name: load_datetime
+        tests: [not_null]

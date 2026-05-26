@@ -1,0 +1,85 @@
+version: 2
+
+models:
+
+  - name: link_customer_card
+    description: >
+      Link customer ↔ card — quan hệ thẻ thuộc về khách hàng.
+      BK: cards_mns.client_id (customer) + cards_mns.id (card).
+    columns:
+      - name: hk_customer_card
+        description: "PK. Hash MD5 của (client_id || id)"
+        tests: [not_null, unique]
+      - name: hk_customer
+        description: "FK → hub_customer"
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('hub_customer')
+                field: hk_customer
+      - name: hk_card
+        description: "FK → hub_card"
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('hub_card')
+                field: hk_card
+      - name: load_datetime
+        tests: [not_null]
+      - name: record_source
+        tests: [not_null]
+
+  - name: link_transaction
+    description: >
+      Transactional link — giao dịch kết nối đồng thời customer, card, merchant, mcc.
+      Multi-key link hợp lệ trong Data Vault 2.0; giảm JOIN overhead khi query Gold.
+    columns:
+      - name: hk_transaction_link
+        description: "PK. Hash MD5 của (id || client_id || card_id || merchant_id || mcc)"
+        tests: [not_null, unique]
+      - name: hk_transaction
+        description: "FK → hub_transaction"
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('hub_transaction')
+                field: hk_transaction
+      - name: hk_customer
+        description: "FK → hub_customer"
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('hub_customer')
+                field: hk_customer
+      - name: hk_card
+        description: "FK → hub_card"
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('hub_card')
+                field: hk_card
+      - name: hk_merchant
+        description: "FK → hub_merchant"
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('hub_merchant')
+                field: hk_merchant
+      - name: hk_mcc
+        description: "FK → hub_mcc"
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('hub_mcc')
+                field: hk_mcc
+      - name: load_datetime
+        tests: [not_null]
+      - name: record_source
+        tests: [not_null]

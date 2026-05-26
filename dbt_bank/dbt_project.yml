@@ -22,15 +22,23 @@ models:
 
     silver:
       +schema: silver
+      +tags: ['silver']
 
       hubs:
         +materialized: incremental
+        +tags: ['hub']
 
       links:
         +materialized: incremental
+        +tags: ['link']
 
       satellites:
         +materialized: incremental
+        +tags: ['satellite']
+
+      ref:
+        +materialized: table
+        +tags: ['ref']
 
     gold:
       +schema: gold
