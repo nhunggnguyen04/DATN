@@ -8,6 +8,10 @@ sources:
       # ── Snapshot hiện tại (dùng cho ref tables) ────────────────────────────
       - name: mcc_codes_tdy
 
+      # ── Current snapshot tables (full data, for satellite/link joins) ────────
+      - name: users_tdy
+      - name: cards_tdy
+
       # ── MNS change-set (id + operation_flag: I/U/D) ────────────────────────
       - name: users_mns
       - name: cards_mns

@@ -13,12 +13,14 @@
 with source_data as (
 
     select distinct
-        client_id,
-        id
-    from {{ source('bronze', 'cards_mns') }}
-    where client_id is not null
-      and id is not null
-      and operation_flag = 'I'
+        t.client_id,
+        m.id
+    from {{ source('bronze', 'cards_mns') }} m
+    inner join {{ source('bronze', 'cards_tdy') }} t
+        on t.id = m.id
+    where t.client_id is not null
+      and m.id is not null
+      and m.operation_flag = 'I'
 
 ),
 

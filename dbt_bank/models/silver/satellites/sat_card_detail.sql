@@ -5,15 +5,16 @@ SET    t.effective_to = SYSUTCDATETIME()
 FROM   {{ this }} AS t
 INNER JOIN (
     SELECT
-        {{ hash_md5('id') }} AS hk_card,
+        {{ hash_md5('m.id') }} AS hk_card,
         {{ hash_md5_concat([
-            'card_brand', 'card_type', 'card_number', 'expires', 'cvv',
-            'has_chip', 'num_cards_issued', 'credit_limit',
-            'acct_open_date', 'year_pin_last_changed'
+            'c.card_brand', 'c.card_type', 'c.card_number', 'c.expires', 'c.cvv',
+            'c.has_chip', 'c.num_cards_issued', 'c.credit_limit',
+            'c.acct_open_date', 'c.year_pin_last_changed'
         ]) }} AS new_hashdiff,
-        operation_flag
-    FROM  {{ source('bronze', 'cards_mns') }}
-    WHERE operation_flag IN ('U', 'D')
+        m.operation_flag
+    FROM  {{ source('bronze', 'cards_mns') }} m
+    LEFT JOIN {{ source('bronze', 'cards_tdy') }} c ON c.id = m.id
+    WHERE m.operation_flag IN ('U', 'D')
 ) AS src
    ON  src.hk_card    = t.hk_card
   AND  t.effective_to = '9999-12-31 00:00:00.0000000'
@@ -38,20 +39,21 @@ SELECT 1 WHERE 1 = 0
 with source_data as (
 
     select
-        id,
-        card_brand,
-        card_type,
-        card_number,
-        expires,
-        cvv,
-        has_chip,
-        num_cards_issued,
-        credit_limit,
-        acct_open_date,
-        year_pin_last_changed
-    from {{ source('bronze', 'cards_mns') }}
-    where id is not null
-      and operation_flag in ('I', 'U')
+        m.id,
+        c.card_brand,
+        c.card_type,
+        c.card_number,
+        c.expires,
+        c.cvv,
+        c.has_chip,
+        c.num_cards_issued,
+        c.credit_limit,
+        c.acct_open_date,
+        c.year_pin_last_changed
+    from {{ source('bronze', 'cards_mns') }} m
+    inner join {{ source('bronze', 'cards_tdy') }} c on c.id = m.id
+    where m.id is not null
+      and m.operation_flag in ('I', 'U')
 
 ),
 

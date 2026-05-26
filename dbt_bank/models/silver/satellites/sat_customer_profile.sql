@@ -5,16 +5,17 @@ SET    t.effective_to = SYSUTCDATETIME()
 FROM   {{ this }} AS t
 INNER JOIN (
     SELECT
-        {{ hash_md5('id') }} AS hk_customer,
+        {{ hash_md5('m.id') }} AS hk_customer,
         {{ hash_md5_concat([
-            'current_age', 'retirement_age', 'birth_year', 'birth_month',
-            'gender', 'address', 'latitude', 'longitude',
-            'per_capita_income', 'yearly_income', 'total_debt',
-            'credit_score', 'num_credit_cards'
+            'u.current_age', 'u.retirement_age', 'u.birth_year', 'u.birth_month',
+            'u.gender', 'u.address', 'u.latitude', 'u.longitude',
+            'u.per_capita_income', 'u.yearly_income', 'u.total_debt',
+            'u.credit_score', 'u.num_credit_cards'
         ]) }} AS new_hashdiff,
-        operation_flag
-    FROM  {{ source('bronze', 'users_mns') }}
-    WHERE operation_flag IN ('U', 'D')
+        m.operation_flag
+    FROM  {{ source('bronze', 'users_mns') }} m
+    LEFT JOIN {{ source('bronze', 'users_tdy') }} u ON u.id = m.id
+    WHERE m.operation_flag IN ('U', 'D')
 ) AS src
    ON  src.hk_customer = t.hk_customer
   AND  t.effective_to  = '9999-12-31 00:00:00.0000000'
@@ -40,23 +41,24 @@ SELECT 1 WHERE 1 = 0
 with source_data as (
 
     select
-        id,
-        current_age,
-        retirement_age,
-        birth_year,
-        birth_month,
-        gender,
-        address,
-        latitude,
-        longitude,
-        per_capita_income,
-        yearly_income,
-        total_debt,
-        credit_score,
-        num_credit_cards
-    from {{ source('bronze', 'users_mns') }}
-    where id is not null
-      and operation_flag in ('I', 'U')
+        m.id,
+        u.current_age,
+        u.retirement_age,
+        u.birth_year,
+        u.birth_month,
+        u.gender,
+        u.address,
+        u.latitude,
+        u.longitude,
+        u.per_capita_income,
+        u.yearly_income,
+        u.total_debt,
+        u.credit_score,
+        u.num_credit_cards
+    from {{ source('bronze', 'users_mns') }} m
+    inner join {{ source('bronze', 'users_tdy') }} u on u.id = m.id
+    where m.id is not null
+      and m.operation_flag in ('I', 'U')
 
 ),
 

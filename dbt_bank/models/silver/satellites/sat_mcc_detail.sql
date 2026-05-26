@@ -12,11 +12,12 @@
 with source_data as (
 
     select
-        mcc_id,
-        [description]
-    from {{ source('bronze', 'mcc_codes_mns') }}
-    where mcc_id is not null
-      and operation_flag in ('I', 'U')
+        m.mcc_id,
+        t.[description]
+    from {{ source('bronze', 'mcc_codes_mns') }} m
+    inner join {{ source('bronze', 'mcc_codes_tdy') }} t on t.mcc_id = m.mcc_id
+    where m.mcc_id is not null
+      and m.operation_flag in ('I', 'U')
 
 )
 
