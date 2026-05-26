@@ -117,12 +117,12 @@ data/unstructured/documents/
 │       └── user_id=1/
 │           └── image1.jpg
 └── doc_type=savings_book/
-    └── run_date=YYYY-MM-DD/
-        └── user_id=1/
-            └── image1.jpg
+     └── run_date=YYYY-MM-DD/
+          └── user_id=1/
+               └── image1.jpg
 
 Pipeline:
-Images → OCR Extraction → CSV → Load Bronze Tables
+Images → OCR Extraction → CSV/XLSX → Load Bronze Tables
 
 Tech:
 - PaddleOCR (tiếng Việt)
@@ -189,16 +189,11 @@ LÃI SUẤT → interest_rate (float %)
 
 ```
 DATN/
-├── dags/                          # Airflow DAGs (chỉ structured)
+├── dags/                          # (Optional) Airflow DAGs (hiện tại chỉ là placeholder)
 │   └── banking_pipeline_dag.py
 ├── scripts/
 │   ├── extract/
-│   │   ├── ocr_extract_id_card.py          # Simple OCR CCCD
-│   │   ├── ocr_extract_savings_book.py    # Simple OCR Sổ tiết kiệm
-│   │   ├── load_bronze_simple.py           # Load CSV → Bronze (simple)
-│   │   ├── run_simple_pipeline.py          # Orchestrator (simple)
-│   │   │
-│   │   # Structured pipeline (giữ nguyên)
+│   │   # Structured → Bronze (TDY/PDY) + compute MNS
 │   │   ├── load_bronze_users.py
 │   │   ├── load_bronze_cards.py
 │   │   ├── load_bronze_transactions.py
@@ -207,11 +202,14 @@ DATN/
 │   │   ├── cards_mns.py
 │   │   ├── transactions_mns.py
 │   │   ├── mcc_codes_mns.py
-│   │   └── ... (các file structured khác)
+│   │   # Unstructured OCR → extracted files + load to Bronze
+│   │   ├── ocr_extract_id_card.py
+│   │   ├── ocr_extract_savings_book.py
+│   │   └── load_bronze_unstructured.py
+│   ├── sql/
+│   │   └── create_bronze_ocr_tables.sql    # DDL cho bronze.id_card_results, bronze.savings_book_results
 │   └── utils/
-│       ├── db_connection.py
-│       ├── logger.py
-│       └── hash_utils.py
+│       └── db_connection.py
 ├── data/
 │   └── unstructured/
 │       ├── documents/              # INPUT: Ảnh gốc
@@ -221,21 +219,20 @@ DATN/
 │       │   └── doc_type=savings_book/
 │       │       └── run_date=YYYY-MM-DD/
 │       │           └── user_id=1/savings_001.jpg
-│       └── extracted/             # OUTPUT: CSV kết quả OCR
+│       ├── extracted/             # OUTPUT: CSV/XLSX kết quả OCR
 │           ├── id_card_extractions_YYYY-MM-DD.csv
-│           └── savings_book_extractions_YYYY-MM-DD.csv
-├── dbt_bank/                      # dbt models (chỉ structured)
+│           ├── id_card_extracted_run_date=YYYY-MM-DD.xlsx
+│           └── savings_book_roi_extractions_YYYY-MM-DD.csv
+│       └── manifests/             # manifest / metadata (optional)
+├── dbt_bank/                      # dbt project (hiện tại tập trung Silver/Data Vault)
 │   ├── models/
-│   │   ├── bronze/
-│   │   ├── silver/
-│   │   └── gold/
+│   │   ├── bronze/                 # source definitions
+│   │   └── silver/                 # hubs/links/satellites/ref
 │   └── dbt_project.yml
 ├── sql/
-│   └── create_bronze_unstructured_tables.sql  # Simple bronze tables
-├── archive/                       # Old pipeline files (archived)
-│   └── ...
+│   └── create_bronze_unstructured_tables.sql  # (Optional) DDL simplified cho unstructured Bronze
+├── .env.example                   # cấu hình kết nối SOURCE_/TARGET_
 ├── requirements.txt
-├── requirements-ocr.txt
 └── README.md
 ```
 
@@ -272,13 +269,14 @@ data/unstructured/documents/
   - ocr_extract_id_card.py
   - ocr_extract_savings_book.py
          ↓
-[Step 2] Output CSV
+[Step 2] Output CSV/XLSX
   data/unstructured/extracted/
     ├── id_card_extractions_YYYY-MM-DD.csv
-    └── savings_book_extractions_YYYY-MM-DD.csv
+          ├── id_card_extracted_run_date=YYYY-MM-DD.xlsx
+          └── savings_book_roi_extractions_YYYY-MM-DD.csv
          ↓
 [Step 3] Load to Bronze
-  load_bronze_simple.py
+     load_bronze_unstructured.py
     ├── bronze.id_card_results
     └── bronze.savings_book_results
          ↓
@@ -291,19 +289,24 @@ Direct SQL Queries (không có Silver/Gold)
 
 ### 6.1. Chuẩn bị môi trường
 
-**Tạo 2 virtual environments** (do PaddleOCR conflict với Airflow/dbt):
+**Tạo môi trường Python**:
 
 ```powershell
-# 1. Main environment (core + structured pipeline)
+# Main environment (core + structured pipeline)
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 
-# 2. OCR environment (PaddleOCR + PaddlePaddle)
+# (Optional) OCR environment (PaddleOCR/PaddlePaddle khá nặng)
 deactivate
 python -m venv .venv_ocr
 .venv_ocr\Scripts\Activate.ps1
-pip install -r requirements-ocr.txt
+pip install --upgrade pip
+pip install opencv-python
+# Windows CPU (khuyến nghị):
+pip install paddlepaddle==3.2.2 paddleocr
+
+
 ```
 
 **Test PaddleOCR**:
@@ -315,17 +318,19 @@ python -c "from paddleocr import PaddleOCR; ocr = PaddleOCR(lang='vi'); print('P
 
 ### 6.2. Database setup
 
-Tạo database `banking_pipeline` trong SQL Server.
+1) Tạo file `.env` từ `.env.example` và điền thông tin kết nối `SOURCE_*` và `TARGET_*`.
 
-**Chạy SQL script để tạo bronze tables**:
+2) Đảm bảo database target (theo `TARGET_DATABASE`) đã tồn tại trong SQL Server.
+
+**Tạo các bảng Bronze cho OCR (unstructured)** (có thể bỏ qua nếu dùng loader vì script sẽ auto-create khi cần):
 
 ```sql
--- Mở sql/create_bronze_unstructured_tables.sql trong SSMS
--- Hoặc chạy bằng Python:
+-- Mở scripts/sql/create_bronze_ocr_tables.sql trong SSMS
+-- (hoặc dùng loader: scripts/extract/load_bronze_unstructured.py)
 .venv\Scripts\Activate.ps1
 python -c "
 from scripts.utils.db_connection import get_target_engine
-with open('sql/create_bronze_unstructured_tables.sql', 'r', encoding='utf-8') as f:
+with open('scripts/sql/create_bronze_ocr_tables.sql', 'r', encoding='utf-8') as f:
     sql = f.read()
 engine = get_target_engine()
 with engine.begin() as conn:
@@ -336,46 +341,27 @@ print('Tables created')
 
 ### 6.3. Chạy Unstructured Pipeline (Simple)
 
-**Option A: Chạy full pipeline** (tự động OCR + Load):
+**Chạy theo từng bước** (OCR → file extracted → load Bronze):
 
 ```powershell
-# Chạy cả CCCD và Sổ tiết kiệm
+# Step 1: OCR CCCD (tạo file extracted)
 .venv_ocr\Scripts\Activate.ps1
-python scripts/extract/run_simple_pipeline.py --run-date 2026-05-22 --doc-type both
+python scripts/extract/ocr_extract_id_card.py --run-date 2026-05-25
 
-# Chỉ CCCD
-python scripts/extract/run_simple_pipeline.py --run-date 2026-05-22 --doc-type id_card
+# Gợi ý input folder mặc định:
+#   data/unstructured/documents/doc_type=id_card/run_date=YYYY-MM-DD/
+# Output mặc định:
+#   data/unstructured/extracted/id_card_extracted_run_date=YYYY-MM-DD.xlsx
 
-# Chỉ Sổ tiết kiệm
-python scripts/extract/run_simple_pipeline.py --run-date 2026-05-22 --doc-type savings_book
-
-# Chỉ OCR, không load DB
-python scripts/extract/run_simple_pipeline.py --run-date 2026-05-22 --doc-type both --skip-load
-```
-
-**Option B: Chạy từng bước**:
-
-```powershell
-# Step 1: OCR CCCD (trong .venv_ocr)
-.venv_ocr\Scripts\Activate.ps1
-python scripts/extract/ocr_extract_id_card.py `
-    --input-dir "data/unstructured/documents/doc_type=id_card/run_date=2026-05-22" `
-    --run-date 2026-05-22
-
-# Step 2: OCR Sổ tiết kiệm
-python scripts/extract/ocr_extract_savings_book.py `
-    --input-dir "data/unstructured/documents/doc_type=savings_book/run_date=2026-05-22" `
-    --run-date 2026-05-22
+# Step 2: Savings book extraction
+# Repo hiện có sẵn file chuẩn schema loader:
+#   data/unstructured/extracted/savings_book_roi_extractions_YYYY-MM-DD.csv
+# (Nếu bạn dùng notebook để extract, cũng sẽ xuất ra đúng file này.)
 
 # Step 3: Load to DB (trong .venv)
 .venv\Scripts\Activate.ps1
-python scripts/extract/load_bronze_simple.py `
-    --csv "data/unstructured/extracted/id_card_extractions_2026-05-22.csv" `
-    --doc-type id_card
-
-python scripts/extract/load_bronze_simple.py `
-    --csv "data/unstructured/extracted/savings_book_extractions_2026-05-22.csv" `
-    --doc-type savings_book
+python scripts/extract/load_bronze_unstructured.py --csv data/unstructured/extracted/id_card_extracted_run_date=2026-05-25.xlsx --doc-type id_card
+python scripts/extract/load_bronze_unstructured.py --csv data/unstructured/extracted/savings_book_roi_extractions_2026-05-25.csv --doc-type savings_book
 ```
 
 ### 6.4. Chạy Structured Pipeline (Full ETL)
@@ -383,36 +369,27 @@ python scripts/extract/load_bronze_simple.py `
 ```powershell
 .venv\Scripts\Activate.ps1
 
-# 1. Extract structured data
+# 1. Extract structured data (load vào bronze.*_tdy; mỗi script sẽ move TDY → PDY trước khi load)
 python scripts/extract/load_bronze_users.py
 python scripts/extract/load_bronze_cards.py
 python scripts/extract/load_bronze_transactions.py
 python scripts/extract/load_bronze_mcc_codes.py
 
-# 2. Compute MNS
+# 2. Compute MNS (tạo change-set I/U/D)
 python scripts/extract/users_mns.py
 python scripts/extract/cards_mns.py
 python scripts/extract/transactions_mns.py
 python scripts/extract/mcc_codes_mns.py
 
-# 3. dbt transform
+# 3. dbt transform (hiện tại tập trung Silver/Data Vault)
 cd dbt_bank
-dbt run
+dbt run --select tag:hub
+dbt run --select tag:link
+dbt run --select tag:satellite
 cd ..
-
-# 4. (Optional) Archive TDY to PDY
-python scripts/extract/move_tdy_to_pdy.py
 ```
 
-**Hoặc dùng Airflow**:
-
-```powershell
-# Trigger DAG
-airflow dags trigger banking_pipeline_dag --conf '{"run_date": "2026-05-22"}'
-
-# Xem logs
-airflow logs banking_pipeline_dag <task_id>
-```
+Ghi chú: folder `dags/` hiện là placeholder; nếu bạn muốn orchestrate bằng Airflow cần bổ sung DAG/tasks tương ứng.
 
 ---
 
@@ -676,8 +653,9 @@ RuntimeError: PaddlePaddle encountered an error related to PIR/oneDNN
 .venv_ocr\Scripts\Activate.ps1
 python scripts/extract/ocr_extract_id_card.py `
     --input-dir "tests/fixtures/id_card_sample/" `
-    --run-date 2026-05-22 `
-    --limit 5
+     --run-date 2026-05-22
+
+# Khi chạy sẽ hỏi số lượng ảnh cần process (Enter = all).
 ```
 
 ### Integration Test (Full pipeline)
@@ -686,8 +664,14 @@ python scripts/extract/ocr_extract_id_card.py `
 # Tạo thư mục test
 mkdir test_data/unstructured/documents/doc_type=id_card/run_date=2026-05-22/user_id=999
 # Copy ảnh mẫu vào
-# Chạy pipeline
-python scripts/extract/run_simple_pipeline.py --run-date 2026-05-22 --doc-type id_card
+# OCR (tạo file extracted)
+.venv_ocr\Scripts\Activate.ps1
+python scripts/extract/ocr_extract_id_card.py --run-date 2026-05-22 --input-dir "test_data/unstructured/documents/doc_type=id_card/run_date=2026-05-22"
+
+# Load vào Bronze
+.venv\Scripts\Activate.ps1
+python scripts/extract/load_bronze_unstructured.py --csv data/unstructured/extracted/id_card_extracted_run_date=2026-05-22.xlsx --doc-type id_card
+
 # Kiểm tra database
 sqlcmd -Q "SELECT * FROM bronze.id_card_results WHERE user_id = 999"
 ```
@@ -702,6 +686,7 @@ Pull requests welcome. Please open issues first to discuss changes.
 
 ---
 
-## 14. Contact
+## 14. ContactS
 
-[Your contact info]
+Nguyễn Hồng Nhung
+emai: nguyenhongnhungtxa@gmail.com
