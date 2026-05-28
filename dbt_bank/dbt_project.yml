@@ -42,9 +42,26 @@ models:
 
     gold:
       +schema: gold
-      +materialized: table
+      +materialized: incremental
+      +tags: ['gold']
+
+      dimensions:
+        +tags: ['gold', 'dim']
+
+      facts:
+        +materialized: incremental
+        +tags: ['gold', 'fact']
+
+vars:
+  run_date: ""
 
 seeds:
   dbt_bank:
     +schema: bronze
     +quote_columns: false
+    dim_date:
+      +schema: gold
+      +column_types:
+        date_key: int
+        full_date: date
+        is_weekend: bit
