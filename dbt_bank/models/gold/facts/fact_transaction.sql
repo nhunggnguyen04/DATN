@@ -66,36 +66,15 @@ hub_mcc as (
     from {{ ref('hub_mcc') }}
 ),
 
--- Dim lookups: natural key → surrogate key (INT IDENTITY, không có trong SELECT dim model)
-dim_cust as (
-    select customer_id, customer_key
-    from {{ ref('dim_customer') }}
-),
-
-dim_card as (
-    select card_id, card_key
-    from {{ ref('dim_card') }}
-),
-
-dim_merch as (
-    select merchant_id, merchant_key
-    from {{ ref('dim_merchant') }}
-),
-
-dim_mcc as (
-    select mcc_id, mcc_key
-    from {{ ref('dim_mcc') }}
-),
-
 final as (
 
     select
         ht.transaction_id,
         CONVERT(INT, FORMAT(s.transaction_datetime, 'yyyyMMdd'))     AS date_key,
-        dc.customer_key,
-        dcard.card_key,
-        dm.merchant_key,
-        dmcc.mcc_key,
+        hc.customer_id,
+        hca.card_id,
+        hm.merchant_id,
+        hmcc.mcc_id,
         s.transaction_datetime,
         s.amount,
         s.use_chip,
@@ -125,10 +104,6 @@ final as (
     inner join hub_card   hca    on lt.hk_card        = hca.hk_card
     inner join hub_merch  hm     on lt.hk_merchant    = hm.hk_merchant
     inner join hub_mcc    hmcc   on lt.hk_mcc         = hmcc.hk_mcc
-    inner join dim_cust   dc     on hc.customer_id    = dc.customer_id
-    inner join dim_card   dcard  on hca.card_id       = dcard.card_id
-    left  join dim_merch  dm     on hm.merchant_id    = dm.merchant_id
-    left  join dim_mcc    dmcc   on hmcc.mcc_id       = dmcc.mcc_id
 
 )
 
