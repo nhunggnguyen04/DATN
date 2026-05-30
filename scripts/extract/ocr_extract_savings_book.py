@@ -1,482 +1,489 @@
+"""
+OCR Extraction Pipeline cho Savings Book (Sổ Tiết Kiệm) – Transaction Page
+
+Pipeline:
+1. Load ảnh
+2. Preprocess (deskew, warp, CLAHE/sharpen)
+3. OCR per ROI (7 fields trên trang giao dịch)
+4. Parse & Structure
+5. Confidence Scoring
+6. Save CSV
+
+Fields extracted:
+  transaction_date | description | transaction_code
+  transaction_amount | balance | interest_rate | signature
+
+Usage:
+    python scripts/extract/ocr_extract_savings_book.py --run-date 2026-05-29
+    python scripts/extract/ocr_extract_savings_book.py --input-dir data/... --run-date 2026-05-29 --limit 10
+"""
+
+from __future__ import annotations
+
 import argparse
-import csv
-import json
-import os
 import re
+import sys
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+import cv2
+import numpy as np
+import pandas as pd
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PROJECT_ROOT))
+
+try:
+    from paddleocr import PaddleOCR
+except ImportError:
+    PaddleOCR = None  # type: ignore
+
+OCR_LANG = "en"
+
+# ---------------------------------------------------------------------------
+# ROI definitions – fractions relative to warped image (out_w=1200)
+# Source: ocr_extract_savings_book.ipynb
+# ---------------------------------------------------------------------------
 
 @dataclass
-class OcrItem:
-    x: float
-    y: float
-    text: str
-    score: float
+class ROI:
+    name: str
+    x1: float
+    y1: float
+    x2: float
+    y2: float
 
 
-def _now_z() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+SAVINGS_BOOK_ROIS = [
+    ROI("transaction_date",   0.007, 0.088, 0.167, 0.115),
+    ROI("description",        0.007, 0.115, 0.167, 0.142),
+    ROI("transaction_code",   0.167, 0.088, 0.248, 0.142),
+    ROI("transaction_amount", 0.248, 0.088, 0.569, 0.115),
+    ROI("balance",            0.569, 0.088, 0.757, 0.115),
+    ROI("interest_rate",      0.757, 0.088, 0.857, 0.115),
+    ROI("signature",          0.857, 0.108, 0.993, 0.162),
+]
+
+_WATERMARK_PATTERNS = [
+    r"\bSAMPLE\b",
+    r"\bDEMO\s*-?\s*NOT\s+A\s+REAL\s+BANK\s+DOCUMENT\b",
+    r"\bNOT\s+A\s+REAL\s+BANK\s+DOCUMENT\b",
+    r"\bFOR\s+TESTING\s+ONLY\b",
+    r"\bDEMO\s+BANK\b",
+]
 
 
-def _normalize_text(s: str) -> str:
-    s = s.strip()
-    s = re.sub(r"\s+", " ", s)
-    return s
+# ---------------------------------------------------------------------------
+# Image helpers
+# ---------------------------------------------------------------------------
+
+def normalize_width(bgr: np.ndarray, out_w: int = 1200) -> np.ndarray:
+    h, w = bgr.shape[:2]
+    if w == out_w:
+        return bgr
+    out_h = int(round(h * out_w / max(1, w)))
+    interp = cv2.INTER_AREA if out_w < w else cv2.INTER_CUBIC
+    return cv2.resize(bgr, (out_w, out_h), interpolation=interp)
 
 
-def _normalize_for_match(s: str) -> str:
-    s = s.upper()
-    s = s.replace("–", "-")
-    s = s.replace("—", "-")
-    s = re.sub(r"[^A-Z0-9:/\- ]+", " ", s)
-    s = re.sub(r"\s+", " ", s).strip()
-    return s
+def rotate_bound(bgr: np.ndarray, angle: float, border=(245, 245, 245)) -> np.ndarray:
+    h, w = bgr.shape[:2]
+    cx, cy = w / 2.0, h / 2.0
+    m = cv2.getRotationMatrix2D((cx, cy), angle, 1.0)
+    cos, sin = abs(m[0, 0]), abs(m[0, 1])
+    new_w = int(h * sin + w * cos)
+    new_h = int(h * cos + w * sin)
+    m[0, 2] += new_w / 2.0 - cx
+    m[1, 2] += new_h / 2.0 - cy
+    return cv2.warpAffine(bgr, m, (new_w, new_h), flags=cv2.INTER_CUBIC, borderValue=border)
 
 
-def _group_items_to_lines(items: list[OcrItem], y_threshold: float = 16.0) -> list[list[OcrItem]]:
-    items_sorted = sorted(items, key=lambda it: (it.y, it.x))
-    lines: list[list[OcrItem]] = []
-    for it in items_sorted:
-        placed = False
-        for line in lines:
-            y_avg = sum(x.y for x in line) / max(1, len(line))
-            if abs(it.y - y_avg) <= y_threshold:
-                line.append(it)
-                placed = True
-                break
-        if not placed:
-            lines.append([it])
-
-    lines = [sorted(line, key=lambda it: it.x) for line in lines]
-    lines = sorted(lines, key=lambda line: sum(it.y for it in line) / max(1, len(line)))
-    return lines
-
-
-def _lines_to_text(lines: list[list[OcrItem]]) -> list[str]:
-    out: list[str] = []
-    for line in lines:
-        txt = _normalize_text(" ".join([it.text for it in line if it.text.strip()]))
-        if txt:
-            out.append(txt)
-    return out
+def estimate_skew_angle(bgr: np.ndarray) -> float:
+    gray = cv2.GaussianBlur(cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY), (3, 3), 0)
+    edges = cv2.Canny(gray, 50, 150, apertureSize=3)
+    lines = cv2.HoughLinesP(
+        edges, 1, np.pi / 180,
+        threshold=160,
+        minLineLength=max(120, bgr.shape[1] // 5),
+        maxLineGap=20,
+    )
+    if lines is None:
+        return 0.0
+    angles = []
+    for x1, y1, x2, y2 in lines[:, 0, :]:
+        a = np.degrees(np.arctan2(y2 - y1, x2 - x1))
+        if -15 <= a <= 15:
+            angles.append(a)
+    return float(np.median(angles)) if angles else 0.0
 
 
-def _extract_value_from_lines(lines_text: list[str], label: str) -> tuple[str | None, float | None]:
-    """Extract value for a label using best-effort heuristics."""
-    label_norm = _normalize_for_match(label)
-    label_tokens = [t for t in label_norm.split(" ") if t]
-
-    best_idx = None
-    for i, line in enumerate(lines_text):
-        lnorm = _normalize_for_match(line)
-        if all(tok in lnorm for tok in label_tokens):
-            best_idx = i
-            break
-
-    if best_idx is None:
-        return None, None
-
-    raw = lines_text[best_idx]
-    if ":" in raw:
-        after = raw.split(":", 1)[1].strip()
-        if after:
-            return after, 0.90
-        if best_idx + 1 < len(lines_text):
-            nxt_norm = _normalize_for_match(lines_text[best_idx + 1])
-            if re.match(r"^[A-Z0-9 /\-]+:\s*", nxt_norm):
-                return None, None
-
-    lnorm = _normalize_for_match(raw)
-    for tok in label_tokens:
-        lnorm = lnorm.replace(tok, " ")
-    lnorm = _normalize_text(lnorm.replace(" : ", " ").replace(":", " "))
-    if lnorm:
-        return lnorm, 0.75
-
-    for j in range(best_idx + 1, min(best_idx + 3, len(lines_text))):
-        nxt = lines_text[j].strip()
-        if nxt:
-            return nxt, 0.60
-
-    return None, None
+def deskew(bgr: np.ndarray, min_abs: float = 0.20) -> tuple[np.ndarray, float]:
+    angle = estimate_skew_angle(bgr)
+    if abs(angle) < min_abs:
+        return bgr, angle
+    return rotate_bound(bgr, angle=-angle), angle
 
 
-def _postprocess_fields(fields: dict) -> dict:
-    out = dict(fields)
+def order_points(pts: np.ndarray) -> np.ndarray:
+    rect = np.zeros((4, 2), dtype="float32")
+    s = pts.sum(axis=1)
+    diff = np.diff(pts, axis=1)
+    rect[0] = pts[np.argmin(s)]
+    rect[2] = pts[np.argmax(s)]
+    rect[1] = pts[np.argmin(diff)]
+    rect[3] = pts[np.argmax(diff)]
+    return rect
 
-    def _normalize_date(raw: str) -> str:
-        s = _normalize_text(raw)
-        s = re.sub(r"(\d{2})/(\d{2})(\d{4})", r"\1/\2/\3", s)
-        s = re.sub(r"(\d{2})(\d{2})(\d{4})", r"\1/\2/\3", s)
-        return s
 
-    # Account number cleanup (digits only)
-    if out.get("account_number"):
-        acc_num = re.sub(r'[^0-9]', '', out["account_number"])
-        if acc_num:
-            out["account_number"] = acc_num
-
-    # Dates
-    date_re = re.compile(r"\d{2}/\d{2}/\d{4}")
-
-    def _expand_2digit_year(two_digit_year: int) -> int:
-        pivot = datetime.now(timezone.utc).year % 100
-        return (1900 + two_digit_year) if two_digit_year > pivot else (2000 + two_digit_year)
-
-    for k in ["opening_date"]:  # Only opening_date for savings book
-        v = out.get(k)
-        if not v:
+def find_document_quad(bgr: np.ndarray) -> np.ndarray | None:
+    blur = cv2.GaussianBlur(cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY), (5, 5), 0)
+    edges = cv2.Canny(blur, 40, 120)
+    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    img_area = bgr.shape[0] * bgr.shape[1]
+    for c in sorted(contours, key=cv2.contourArea, reverse=True)[:10]:
+        if cv2.contourArea(c) < img_area * 0.25:
             continue
-        v = _normalize_date(v)
-        m = date_re.search(v)
-        if m:
-            out[k] = m.group(0)
+        approx = cv2.approxPolyDP(c, 0.02 * cv2.arcLength(c, True), True)
+        if len(approx) == 4:
+            return order_points(approx.reshape(4, 2).astype("float32"))
+    return None
+
+
+def warp_document(bgr: np.ndarray, quad: np.ndarray, out_w: int = 1200) -> np.ndarray:
+    rect = order_points(quad)
+    tl, tr, br, bl = rect
+    max_w = int(max(np.linalg.norm(br - bl), np.linalg.norm(tr - tl)))
+    max_h = int(max(np.linalg.norm(tr - br), np.linalg.norm(tl - bl)))
+    dst = np.array([[0, 0], [max_w - 1, 0], [max_w - 1, max_h - 1], [0, max_h - 1]], dtype="float32")
+    warped = cv2.warpPerspective(
+        bgr, cv2.getPerspectiveTransform(rect, dst),
+        (max_w, max_h), borderValue=(245, 245, 245),
+    )
+    return normalize_width(warped, out_w=out_w)
+
+
+def preprocess_for_ocr(bgr: np.ndarray) -> dict[str, np.ndarray]:
+    gray    = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+    denoise = cv2.fastNlMeansDenoising(gray, None, 10, 7, 21)
+    clahe   = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(denoise)
+    sharpen = cv2.addWeighted(clahe, 1.5, cv2.GaussianBlur(clahe, (0, 0), 1.0), -0.5, 0)
+    return {"bgr": bgr, "gray": gray, "clahe": clahe, "sharpen": sharpen}
+
+
+def scale_rois(rois: list[ROI], w: int, h: int) -> dict[str, tuple[int, int, int, int]]:
+    return {r.name: (
+        max(0, min(w - 1, int(round(r.x1 * w)))),
+        max(0, min(h - 1, int(round(r.y1 * h)))),
+        max(0, min(w,     int(round(r.x2 * w)))),
+        max(0, min(h,     int(round(r.y2 * h)))),
+    ) for r in rois}
+
+
+# ---------------------------------------------------------------------------
+# Text helpers
+# ---------------------------------------------------------------------------
+
+def clean_text(text: str) -> str:
+    return re.sub(r"\s+", " ", str(text or "").replace("|", "I")).strip()
+
+
+def strip_watermark(text: str) -> str:
+    for p in _WATERMARK_PATTERNS:
+        text = re.sub(p, " ", text, flags=re.IGNORECASE)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def parse_field(field: str, text: str) -> str:
+    text = strip_watermark(clean_text(text))
+    if field == "transaction_date":
+        m = re.search(r"\d{1,2}[/\-.]\d{1,2}[/\-.]\d{2,4}", text)
+        return m.group(0).replace("-", "/").replace(".", "/") if m else text
+    if field == "transaction_code":
+        m = re.search(r"\b[A-Z]{2,8}\b", text.upper())
+        return m.group(0) if m else text.upper()
+    if field in {"transaction_amount", "balance"}:
+        m = re.search(r"\d[\d,\.]*", text)
+        return m.group(0) if m else text
+    if field == "interest_rate":
+        m = re.search(r"\d+(?:[\.,]\d+)?\s*%", text)
+        return m.group(0).replace(",", ".") if m else text
+    if field == "signature":
+        text = re.sub(r"\b(DEMO|Signature)\b", " ", text, flags=re.IGNORECASE)
+        return clean_text(text)
+    return text
+
+
+def is_plausible(field: str, text: str) -> bool:
+    text = clean_text(text)
+    if not text:
+        return False
+    if field == "transaction_date":
+        return bool(re.search(r"\d{1,2}/\d{1,2}/\d{2,4}", text))
+    if field == "transaction_code":
+        return bool(re.fullmatch(r"[A-Z]{2,8}", text))
+    if field in {"transaction_amount", "balance"}:
+        return bool(re.search(r"\d", text))
+    if field == "interest_rate":
+        return "%" in text and bool(re.search(r"\d", text))
+    return len(text) >= 2
+
+
+def extract_user_id(path: Path) -> int | None:
+    for part in path.parts:
+        if part.startswith("user_id="):
+            try:
+                return int(part.split("=", 1)[1])
+            except Exception:
+                return None
+    return None
+
+
+# ---------------------------------------------------------------------------
+# OCR helpers
+# ---------------------------------------------------------------------------
+
+def _box_to_xyxy(box) -> tuple | None:
+    arr = np.asarray(box, dtype=np.float32)
+    if arr.size == 4 and arr.ndim == 1:
+        return tuple(arr.tolist())
+    if arr.ndim >= 2 and arr.shape[-1] >= 2:
+        pts = arr.reshape(-1, arr.shape[-1])[:, :2]
+        return (
+            float(np.min(pts[:, 0])), float(np.min(pts[:, 1])),
+            float(np.max(pts[:, 0])), float(np.max(pts[:, 1])),
+        )
+    return None
+
+
+def ocr_predict_items(ocr_engine, img: np.ndarray) -> tuple[list[dict], str, float | None]:
+    bgr_img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR) if img.ndim == 2 else img
+    results = ocr_engine.predict(
+        bgr_img,
+        use_doc_orientation_classify=False,
+        use_doc_unwarping=False,
+        use_textline_orientation=False,
+    )
+    if not results:
+        return [], "", None
+    j = getattr(results[0], "json", None)
+    if not isinstance(j, dict):
+        return [], "", None
+    res    = j.get("res", {})
+    texts  = res.get("rec_texts",  []) or []
+    scores = res.get("rec_scores", []) or []
+    boxes  = next(
+        (res.get(k) for k in ("rec_boxes", "rec_polys", "dt_boxes", "dt_polys") if res.get(k)),
+        [],
+    )
+    items = []
+    for i, text in enumerate(texts):
+        if i >= len(boxes):
             continue
+        xyxy = _box_to_xyxy(boxes[i])
+        if xyxy is None:
+            continue
+        score = float(scores[i] if i < len(scores) and scores[i] is not None else 0.0)
+        x1, y1, x2, y2 = xyxy
+        items.append({"text": str(text).strip(), "score": score,
+                      "x1": x1, "y1": y1, "x2": x2, "y2": y2})
+    full_text  = " ".join(it["text"] for it in items).strip()
+    mean_score = float(np.mean([it["score"] for it in items])) if items else None
+    return items, full_text, mean_score
 
-        m2 = re.search(r"(\d{2})/(\d{2})/(\d{2})", v)
-        if m2:
-            dd, mm, yy = m2.group(1), m2.group(2), int(m2.group(3))
-            out[k] = f"{dd}/{mm}/{_expand_2digit_year(yy):04d}"
 
-    # Balance cleanup (remove currency symbols)
-    if out.get("balance"):
-        balance_str = re.sub(r'[^\d.,]', '', str(out["balance"]))
+def ocr_roi_variants(pp: dict[str, np.ndarray], box: tuple) -> list[tuple[str, np.ndarray]]:
+    x1, y1, x2, y2 = box
+    variants = []
+    for key in ("sharpen", "clahe", "gray"):
+        base = pp.get(key)
+        if base is None:
+            continue
+        roi = base[y1:y2, x1:x2]
+        if roi.size:
+            variants.append((key, roi))
+            variants.append((f"{key}_x2", cv2.resize(roi, None, fx=2.0, fy=2.0,
+                                                      interpolation=cv2.INTER_CUBIC)))
+    return variants
+
+
+def choose_best_ocr(field_name: str, candidates: list[tuple]) -> tuple:
+    best      = ("", None, "", 0)
+    best_key  = (-1, -1.0, -1, -1)
+    for src, raw, score, n_items in candidates:
+        parsed = parse_field(field_name, raw)
+        plaus  = 1 if is_plausible(field_name, parsed) else 0
+        s      = float(score) if score is not None else -1.0
+        key    = (plaus, s, len(parsed), n_items)
+        if key > best_key:
+            best_key = key
+            best     = (raw, score, src, n_items)
+    return best
+
+
+# ---------------------------------------------------------------------------
+# Main processing
+# ---------------------------------------------------------------------------
+
+def process_directory(
+    input_dir: Path,
+    run_date: str,
+    output_csv: Path,
+    lang: str = OCR_LANG,
+    limit: int | None = None,
+) -> bool:
+    if PaddleOCR is None:
+        raise RuntimeError("PaddleOCR not installed. Run: pip install paddlepaddle paddleocr")
+
+    extensions = ("*.jpg", "*.jpeg", "*.png", "*.tif", "*.tiff", "*.bmp")
+    img_paths: list[Path] = []
+    for ext in extensions:
+        img_paths.extend(input_dir.rglob(ext))
+    img_paths = sorted(img_paths)
+    total_found = len(img_paths)
+    if limit:
+        img_paths = img_paths[:limit]
+
+    if not img_paths:
+        print(f"ERROR: No images found in {input_dir}")
+        return False
+
+    print(f"Found {total_found} images; processing {len(img_paths)}")
+    print(f"Initializing PaddleOCR (lang={lang})...")
+    ocr = PaddleOCR(lang=lang, ocr_version="PP-OCRv3", use_textline_orientation=False)
+
+    rows: list[dict] = []
+
+    for i, img_path in enumerate(img_paths, 1):
+        print(f"\n[{i}/{len(img_paths)}] {img_path}")
         try:
-            # Convert to decimal string
-            if ',' in balance_str and '.' in balance_str:
-                # Vietnamese format: 1.234,56 → 1234.56
-                balance_str = balance_str.replace('.', '').replace(',', '.')
-            elif ',' in balance_str:
-                # US format: 1,234.56 (keep comma as thousand separator? remove)
-                balance_str = balance_str.replace(',', '')
-            out["balance"] = float(balance_str)
-        except:
-            out["balance"] = None
+            bgr = cv2.imread(str(img_path))
+            if bgr is None:
+                raise ValueError(f"Cannot read image: {img_path}")
 
-    # Interest rate cleanup
-    if out.get("interest_rate"):
-        rate_str = re.sub(r'[^\d.,%]', '', str(out["interest_rate"]))
-        try:
-            rate_str = rate_str.replace('%', '').replace(',', '.')
-            out["interest_rate"] = float(rate_str)
-        except:
-            out["interest_rate"] = None
+            # Step 2: Preprocess
+            deskewed, _ = deskew(bgr)
+            quad = find_document_quad(deskewed)
+            warped = (warp_document(deskewed, quad, out_w=1200)
+                      if quad is not None
+                      else normalize_width(deskewed, out_w=1200))
+            pp = preprocess_for_ocr(warped)
+            roi_boxes = scale_rois(SAVINGS_BOOK_ROIS, warped.shape[1], warped.shape[0])
 
-    # Clean whitespace for all strings
-    for k, v in list(out.items()):
-        if isinstance(v, str):
-            out[k] = _normalize_text(v)
+            # Step 3: OCR per ROI
+            field_raw: dict[str, dict] = {}
+            for field_name, box in roi_boxes.items():
+                candidates = []
+                for src, roi in ocr_roi_variants(pp, box):
+                    items_list, full_text, mean_score = ocr_predict_items(ocr, roi)
+                    candidates.append((src, full_text, mean_score, len(items_list)))
+                raw, score, src, _ = choose_best_ocr(field_name, candidates)
+                field_raw[field_name] = {"raw_text": raw, "score": score, "src": src}
 
-    return out
+            # Step 4: Parse & Structure
+            parsed = {fn: parse_field(fn, payload["raw_text"])
+                      for fn, payload in field_raw.items()}
+
+            # Step 5: Confidence
+            scores = [float(p["score"]) for p in field_raw.values() if p.get("score") is not None]
+            plaus  = sum(1 for fn, pf in parsed.items() if is_plausible(fn, pf))
+            total  = len(field_raw)
+            ocr_conf   = float(np.mean(scores)) if scores else 0.0
+            parse_conf = plaus / max(1, total)
+            final_conf = round(0.70 * ocr_conf + 0.30 * parse_conf, 4)
+
+            row = {
+                "file_name":          img_path.name,
+                "file_path":          str(img_path),
+                "run_date":           run_date,
+                "user_id":            extract_user_id(img_path),
+                "transaction_date":   parsed.get("transaction_date"),
+                "description":        parsed.get("description"),
+                "transaction_code":   parsed.get("transaction_code"),
+                "transaction_amount": parsed.get("transaction_amount"),
+                "balance":            parsed.get("balance"),
+                "interest_rate":      parsed.get("interest_rate"),
+                "signature":          parsed.get("signature"),
+                "final_confidence":   final_conf,
+                "ocr_confidence":     round(ocr_conf, 4),
+                "parse_confidence":   round(parse_conf, 4),
+                "plausible_fields":   plaus,
+            }
+            rows.append(row)
+            print(f"  OK: date={row['transaction_date']} | code={row['transaction_code']} "
+                  f"| amount={row['transaction_amount']} | balance={row['balance']} "
+                  f"| conf={final_conf:.3f}")
+
+        except Exception as e:
+            import traceback
+            print(f"  ERROR: {e}")
+            traceback.print_exc()
+            rows.append({
+                "file_name": img_path.name,
+                "file_path": str(img_path),
+                "run_date":  run_date,
+                "user_id":   extract_user_id(img_path),
+                "final_confidence": 0.0,
+                "ocr_confidence": 0.0,
+                "parse_confidence": 0.0,
+                "plausible_fields": 0,
+            })
+
+    df = pd.DataFrame(rows)
+    output_csv.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(output_csv, index=False, encoding="utf-8-sig")
+    print(f"\nSaved {len(df)} records → {output_csv}")
+
+    ok = df["final_confidence"].notna().sum()
+    avg_conf = df["final_confidence"].mean()
+    print(f"Processed: {ok}/{len(df)} | Avg confidence: {avg_conf:.3f}")
+    return True
 
 
-def ocr_savings_book(
-    path: Path,
-    *,
-    lang: str = "en",
-    doc_orientation: bool = False,
-    unwarp: bool = False,
-    textline_orientation: bool = False,
-) -> tuple[list[str], str, float]:
-    """OCR savings book - similar to id_card but with different label extraction"""
-    try:
-        from paddleocr import PaddleOCR
-    except Exception as e:
-        raise RuntimeError(
-            "PaddleOCR is not installed. Use .venv_ocr or install paddleocr dependencies."
-        ) from e
+def main():
+    parser = argparse.ArgumentParser(description="OCR Savings Book – Transaction Page")
+    parser.add_argument("--input-dir", default=None)
+    parser.add_argument("--run-date",  default=None,  help="YYYY-MM-DD")
+    parser.add_argument("--out",       default=None,  help="Output CSV path")
+    parser.add_argument("--lang",      default=OCR_LANG)
+    parser.add_argument("--limit",     type=int, default=0)
+    args = parser.parse_args()
 
-    try:
-        import paddle
-        paddle.set_flags({
-            "FLAGS_use_mkldnn": False,
-            "FLAGS_use_onednn": False,
-            "FLAGS_enable_pir_api": False,
-            "FLAGS_enable_pir_in_executor": False,
-        })
-    except Exception:
-        pass
+    run_date = args.run_date or __import__("datetime").date.today().isoformat()
 
-    os.environ.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "True")
-
-    ocr = PaddleOCR(
-        lang=lang,
-        use_doc_orientation_classify=doc_orientation,
-        use_doc_unwarping=unwarp,
-        use_textline_orientation=textline_orientation,
+    input_dir = (
+        Path(args.input_dir)
+        if args.input_dir
+        else PROJECT_ROOT / "data" / "unstructured" / "documents"
+          / "doc_type=savings_book" / "run_date=2026-05-29"
     )
-
-    if hasattr(ocr, "predict"):
-        result = ocr.predict(str(path))
-    else:
-        result = ocr.ocr(str(path))
-
-    items: list[OcrItem] = []
-    scores: list[float] = []
-
-    pages = result if isinstance(result, list) else []
-    for page in pages:
-        if hasattr(page, "json"):
-            try:
-                payload = page.json
-                res = payload.get("res") if isinstance(payload, dict) else None
-                if isinstance(res, dict):
-                    texts = res.get("rec_texts") or []
-                    rec_scores = res.get("rec_scores") or []
-                    polys = res.get("dt_polys") or res.get("rec_polys") or []
-                    boxes = res.get("rec_boxes") or []
-
-                    for idx, txt in enumerate(texts):
-                        score = rec_scores[idx] if idx < len(rec_scores) else 0.0
-                        poly = polys[idx] if idx < len(polys) else None
-                        box = boxes[idx] if idx < len(boxes) else None
-
-                        bbox: list[list[float]] | None = None
-                        if isinstance(poly, list) and len(poly) >= 4:
-                            bbox = [[float(p[0]), float(p[1])] for p in poly[:4]]
-                        elif isinstance(box, list) and len(box) == 4:
-                            x1, y1, x2, y2 = [float(v) for v in box]
-                            bbox = [[x1, y1], [x2, y1], [x2, y2], [x1, y2]]
-
-                        if not bbox:
-                            continue
-
-                        xs = [p[0] for p in bbox]
-                        ys = [p[1] for p in bbox]
-                        x = float(sum(xs) / len(xs))
-                        y = float(sum(ys) / len(ys))
-                        txt = txt or ""
-                        try:
-                            score_f = float(score)
-                        except Exception:
-                            score_f = 0.0
-                        items.append(OcrItem(x=x, y=y, text=txt, score=score_f))
-                        scores.append(score_f)
-                continue
-            except Exception:
-                pass
-
-        if not isinstance(page, list):
-            continue
-        for line in page:
-            if not isinstance(line, (list, tuple)) or len(line) != 2:
-                continue
-            bbox, rec = line
-            if not isinstance(bbox, (list, tuple)) or len(bbox) < 4:
-                continue
-            if not isinstance(rec, (list, tuple)) or len(rec) != 2:
-                continue
-            txt, score = rec
-            try:
-                xs = [p[0] for p in bbox]
-                ys = [p[1] for p in bbox]
-                x = float(sum(xs) / len(xs))
-                y = float(sum(ys) / len(ys))
-            except Exception:
-                continue
-            txt = txt or ""
-            try:
-                score_f = float(score)
-            except Exception:
-                score_f = 0.0
-            items.append(OcrItem(x=x, y=y, text=txt, score=score_f))
-            scores.append(score_f)
-
-    lines = _group_items_to_lines(items)
-    lines_text = _lines_to_text(lines)
-    full_text = "\n".join(lines_text)
-    avg_score = sum(scores) / len(scores) if scores else 0.0
-    return lines_text, full_text, avg_score
-
-
-def main() -> None:
-    p = argparse.ArgumentParser(description="OCR + extraction for Savings Book documents")
-    p.add_argument("--input-dir", required=True, help="Directory containing images (with user_id subfolders)")
-    p.add_argument("--run-date", required=True, help="Run date (YYYY-MM-DD)")
-    p.add_argument("--limit", type=int, default=0, help="Limit number of documents processed")
-    p.add_argument("--lang", default="en", help="PaddleOCR language (default: en)")
-    p.add_argument(
-        "--doc-orientation",
-        action="store_true",
-        help="Enable document orientation classifier",
-    )
-    p.add_argument(
-        "--unwarp",
-        action="store_true",
-        help="Enable document unwarping model",
-    )
-    p.add_argument(
-        "--textline-orientation",
-        action="store_true",
-        help="Enable textline orientation",
-    )
-    p.add_argument(
-        "--no-angle-cls",
-        action="store_true",
-        help="(Deprecated)",
-    )
-    p.add_argument(
-        "--out",
-        default="",
-        help="Output CSV path (default: data/unstructured/extracted/savings_book_extractions_<run_date>.csv)",
-    )
-    args = p.parse_args()
-
-    input_dir = Path(args.input_dir)
     if not input_dir.exists():
-        raise FileNotFoundError(f"Input directory not found: {input_dir}")
+        print(f"ERROR: Input dir not found: {input_dir}")
+        return 1
 
-    run_date = args.run_date.strip()
-
-    # Find all images
-    image_files = list(input_dir.rglob("*.jpg")) + \
-                  list(input_dir.rglob("*.png")) + \
-                  list(input_dir.rglob("*.jpeg")) + \
-                  list(input_dir.rglob("*.tiff")) + \
-                  list(input_dir.rglob("*.tif"))
-
-    if not image_files:
-        raise RuntimeError(f"No image files found in {input_dir}")
-
-    if args.limit and args.limit > 0:
-        image_files = image_files[:args.limit]
-
-    print(f"Found {len(image_files)} images in {input_dir}")
-
-    out_path = Path(args.out) if args.out else (
-        PROJECT_ROOT / "data" / "unstructured" / "extracted" / f"savings_book_extractions_{run_date}.csv"
+    output_csv = (
+        Path(args.out)
+        if args.out
+        else PROJECT_ROOT / "data" / "unstructured" / "extracted"
+          / f"savings_book_roi_extractions_{run_date}.csv"
     )
-    out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    processed_at = _now_z()
+    print("=" * 60)
+    print("OCR SAVINGS BOOK – TRANSACTION PAGE")
+    print("=" * 60)
+    print(f"Input : {input_dir}")
+    print(f"Date  : {run_date}")
+    print(f"Output: {output_csv}")
+    print(f"Limit : {args.limit or 'all'}")
 
-    # Output columns for savings book
-    fieldnames = [
-        "document_id",
-        "file_path",
-        "run_date",
-        "user_id",
-        "ocr_engine",
-        "ocr_lang",
-        "ocr_avg_score",
-        "ocr_text",
-        "account_number",
-        "account_holder",
-        "account_type",
-        "opening_date",
-        "balance",
-        "interest_rate",
-        "extraction_confidence",
-        "processed_at",
-        "status",
-        "error_message",
-    ]
-
-    with out_path.open("w", newline="", encoding="utf-8") as f_out:
-        w = csv.DictWriter(f_out, fieldnames=fieldnames)
-        w.writeheader()
-
-        ok, fail = 0, 0
-        for img_path in image_files:
-            document_id = img_path.stem
-
-            # Extract user_id from path
-            user_id = None
-            for part in img_path.parts:
-                if part.startswith("user_id="):
-                    try:
-                        user_id = int(part.split("=")[1])
-                    except:
-                        user_id = None
-                    break
-
-            try:
-                lines_text, full_text, avg_score = ocr_savings_book(
-                    img_path,
-                    lang=args.lang,
-                    doc_orientation=bool(args.doc_orientation),
-                    unwarp=bool(args.unwarp),
-                    textline_orientation=bool(args.textline_orientation and (not args.no_angle_cls)),
-                )
-
-                # Extraction for savings book
-                extracted: dict[str, str | None] = {}
-                confs: list[float] = []
-
-                label_map = {
-                    "account_number": "SỐ TÀI KHOẢN",
-                    "account_holder": "CHỦ TÀI KHOẢN",
-                    "account_type": "LOẠI TÀI KHOẢN",
-                    "opening_date": "NGÀY MỞ SỔ",
-                    "balance": "SỐ DƯ",
-                    "interest_rate": "LÃI SUẤT",
-                }
-
-                for key, label in label_map.items():
-                    val, c = _extract_value_from_lines(lines_text, label)
-                    extracted[key] = val
-                    if c is not None:
-                        confs.append(float(c))
-
-                extracted = _postprocess_fields(extracted)
-                extraction_conf = sum(confs) / len(confs) if confs else 0.0
-
-                out_row = {
-                    "document_id": document_id,
-                    "file_path": str(img_path),
-                    "run_date": run_date,
-                    "user_id": user_id,
-                    "ocr_engine": "paddleocr",
-                    "ocr_lang": args.lang,
-                    "ocr_avg_score": f"{avg_score:.4f}",
-                    "ocr_text": json.dumps({"lines": lines_text, "text": full_text}, ensure_ascii=False),
-                    "account_number": extracted.get("account_number"),
-                    "account_holder": extracted.get("account_holder"),
-                    "account_type": extracted.get("account_type"),
-                    "opening_date": extracted.get("opening_date"),
-                    "balance": extracted.get("balance"),
-                    "interest_rate": extracted.get("interest_rate"),
-                    "extraction_confidence": f"{extraction_conf:.4f}",
-                    "processed_at": processed_at,
-                    "status": "ok",
-                    "error_message": "",
-                }
-                w.writerow(out_row)
-                ok += 1
-
-            except Exception as e:
-                w.writerow(
-                    {
-                        "document_id": document_id,
-                        "file_path": str(img_path),
-                        "run_date": run_date,
-                        "user_id": user_id,
-                        "ocr_engine": "paddleocr",
-                        "ocr_lang": args.lang,
-                        "ocr_avg_score": "",
-                        "ocr_text": "",
-                        "account_number": "",
-                        "account_holder": "",
-                        "account_type": "",
-                        "opening_date": "",
-                        "balance": "",
-                        "interest_rate": "",
-                        "extraction_confidence": "",
-                        "processed_at": processed_at,
-                        "status": "error",
-                        "error_message": str(e),
-                    }
-                )
-                fail += 1
-
-    print(f"\nInput directory: {input_dir.as_posix()}")
-    print(f"Output: {out_path.as_posix()}")
-    print(f"Success: {ok} | Failed: {fail}")
+    success = process_directory(
+        input_dir=input_dir,
+        run_date=run_date,
+        output_csv=output_csv,
+        lang=args.lang,
+        limit=args.limit or None,
+    )
+    return 0 if success else 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

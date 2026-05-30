@@ -36,19 +36,19 @@ _DDL_SCHEMA = "IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'bronze') E
 _DDL_ID_CARD = """
 CREATE TABLE bronze.id_card_results (
     id                  BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_id_card_results PRIMARY KEY,
-    file                NVARCHAR(200)   NULL,
+    file_name           NVARCHAR(200)   NULL,
     file_path           NVARCHAR(500)   NULL,
     run_date            DATE            NULL,
     user_id             INT             NULL,
     full_name           NVARCHAR(300)   NULL,
     id_number           NVARCHAR(50)    NULL,
-    date_of_birth       NVARCHAR(20)    NULL,
+    date_of_birth       NVARCHAR(30)    NULL,
     sex                 NVARCHAR(20)    NULL,
     nationality         NVARCHAR(100)   NULL,
     place_of_origin     NVARCHAR(300)   NULL,
     place_of_residence  NVARCHAR(500)   NULL,
-    issue_date          NVARCHAR(20)    NULL,
-    expiry_date         NVARCHAR(20)    NULL,
+    issue_date          NVARCHAR(30)    NULL,
+    expiry_date         NVARCHAR(30)    NULL,
     final_confidence    FLOAT           NULL,
     ocr_confidence      FLOAT           NULL,
     parse_confidence    FLOAT           NULL,
@@ -59,29 +59,29 @@ CREATE TABLE bronze.id_card_results (
 
 _DDL_SAVINGS_BOOK = """
 CREATE TABLE bronze.savings_book_results (
-    id                  BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_savings_book_results PRIMARY KEY,
-    file                NVARCHAR(200)   NULL,
-    file_path           NVARCHAR(500)   NULL,
-    run_date            DATE            NULL,
-    user_id             INT             NULL,
-    transaction_date    NVARCHAR(20)    NULL,
-    description         NVARCHAR(300)   NULL,
-    transaction_code    NVARCHAR(20)    NULL,
-    transaction_amount  NVARCHAR(50)    NULL,
-    balance             NVARCHAR(50)    NULL,
-    interest_rate       NVARCHAR(20)    NULL,
-    signature           NVARCHAR(200)   NULL,
-    final_confidence    FLOAT           NULL,
-    ocr_confidence      FLOAT           NULL,
-    parse_confidence    FLOAT           NULL,
-    plausible_fields    INT             NULL,
-    _loaded_at          DATETIME2       NOT NULL DEFAULT GETDATE()
+    id                      BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_savings_book_results PRIMARY KEY,
+    file_name               NVARCHAR(200)   NULL,
+    file_path               NVARCHAR(500)   NULL,
+    run_date                DATE            NULL,
+    user_id                 INT             NULL,
+    transaction_date        NVARCHAR(30)    NULL,
+    description             NVARCHAR(500)   NULL,
+    transaction_code        NVARCHAR(20)    NULL,
+    transaction_amount      NVARCHAR(100)   NULL,
+    balance                 NVARCHAR(100)   NULL,
+    interest_rate           NVARCHAR(50)    NULL,
+    signature               NVARCHAR(300)   NULL,
+    final_confidence        FLOAT           NULL,
+    ocr_confidence          FLOAT           NULL,
+    parse_confidence        FLOAT           NULL,
+    plausible_fields        INT             NULL,
+    _loaded_at              DATETIME2       NOT NULL DEFAULT GETDATE()
 )
 """
 
 # Cột dùng để phát hiện schema lệch (nếu cột này không có trong bảng → DROP+CREATE)
-_ID_CARD_SIGNATURE_COL = "file"
-_SAVINGS_BOOK_SIGNATURE_COL = "file"
+_ID_CARD_SIGNATURE_COL = "file_name"
+_SAVINGS_BOOK_SIGNATURE_COL = "file_name"
 
 _DDL_IDX_ID_CARD = [
     "IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_id_card_results_run_date' AND object_id=OBJECT_ID('bronze.id_card_results')) CREATE INDEX IX_id_card_results_run_date ON bronze.id_card_results (run_date)",
@@ -165,6 +165,8 @@ def _read_file(path: Path) -> pd.DataFrame:
 
 def _coerce_id_card(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
+    if "file" in df.columns and "file_name" not in df.columns:
+        df = df.rename(columns={"file": "file_name"})
     if "run_date" in df.columns:
         df["run_date"] = pd.to_datetime(df["run_date"], errors="coerce").dt.date
     if "user_id" in df.columns:
@@ -179,6 +181,8 @@ def _coerce_id_card(df: pd.DataFrame) -> pd.DataFrame:
 
 def _coerce_savings_book(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
+    if "file" in df.columns and "file_name" not in df.columns:
+        df = df.rename(columns={"file": "file_name"})
     if "run_date" in df.columns:
         df["run_date"] = pd.to_datetime(df["run_date"], errors="coerce").dt.date
     if "user_id" in df.columns:

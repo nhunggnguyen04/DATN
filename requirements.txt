@@ -1,28 +1,16 @@
 # Core dependencies
 numpy>=1.26.0,<2.4
 pandas>=2.0.0
-sqlalchemy>=2.0.0
 pyodbc>=5.0.0
 python-dotenv>=1.0.0
 
-# Keep protobuf <7 for dbt compatibility
-protobuf>=6.0.0,<7.0.0
 
 # Data generation and reporting
 pillow>=10.0.0
 reportlab>=4.0.0
 faker>=20.0.0
 
-# dbt for data transformation
-dbt-core>=1.7.0
-dbt-sqlserver>=1.7.0
 
-# Airflow for orchestration
-apache-airflow>=2.8.0
-apache-airflow-providers-microsoft-mssql>=3.5.0
-
-# Airflow (3.x) requires PyYAML>=6.0.3
-PyYAML>=6.0.3
 
 # OCR dependencies (PaddleOCR)
 # Note: Install separately in .venv_ocr due to large size

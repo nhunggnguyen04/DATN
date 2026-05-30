@@ -7,11 +7,9 @@ models:
   - name: dim_customer
     description: >
       Dimension khách hàng — current state (active record từ sat_customer_profile SCD2).
-      Chứa computed columns debt_to_income_ratio, income_segment, credit_risk_tier,
-      years_to_retirement để chatbot và Power BI đọc cùng cột, số liệu luôn khớp.
     columns:
-      - name: customer_key
-        description: Surrogate key INT IDENTITY (auto-generated)
+      - name: hk_customer
+        description: Hash key từ Data Vault
         tests:
           - unique
           - not_null
@@ -35,11 +33,10 @@ models:
 
   - name: dim_card
     description: >
-      Dimension thẻ — current state (SCD2). Denormalize customer_id qua link_customer_card
-      (outrigger pattern). Loại bỏ card_number và cvv (PCI).
+      Dimension thẻ — current state (SCD2).
     columns:
-      - name: card_key
-        description: Surrogate key INT IDENTITY (auto-generated)
+      - name: hk_card
+        description: Hash key từ Data Vault
         tests:
           - unique
           - not_null
@@ -49,17 +46,16 @@ models:
           - unique
           - not_null
       - name: customer_id
-        description: Denormalized FK — customer sở hữu thẻ (via link_customer_card)
+        description: Denormalized FK — customer sở hữu thẻ
         tests:
           - not_null
 
   - name: dim_merchant
     description: >
       Dimension merchant — derived từ hub_merchant + sat_transaction_detail.
-      Location (city/state/zip) lấy từ giao dịch gần nhất vì Bronze không có bảng merchants riêng.
     columns:
-      - name: merchant_key
-        description: Surrogate key INT IDENTITY (auto-generated)
+      - name: hk_merchant
+        description: Hash key từ Data Vault
         tests:
           - unique
           - not_null
@@ -71,11 +67,10 @@ models:
 
   - name: dim_mcc
     description: >
-      Dimension MCC (Merchant Category Code) — mô tả ngành hàng.
-      Nguồn: hub_mcc + sat_mcc_detail (SCD1).
+      Dimension MCC (Merchant Category Code).
     columns:
-      - name: mcc_key
-        description: Surrogate key INT IDENTITY (auto-generated)
+      - name: hk_mcc
+        description: Hash key từ Data Vault
         tests:
           - unique
           - not_null
@@ -89,36 +84,29 @@ models:
 
   - name: fact_transaction
     description: >
-      Fact table chính — grain: 1 row = 1 giao dịch (157k rows).
-      Incremental delete+insert theo transaction_datetime = run_date (idempotent).
-      has_error và is_chip_used là computed columns chia sẻ giữa dashboard và chatbot.
+      Fact table chính — grain: 1 row = 1 giao dịch.
     columns:
-      - name: transaction_key
-        description: Surrogate key INT IDENTITY (auto-generated)
-        tests:
-          - unique
-          - not_null
       - name: transaction_id
         description: Natural key / degenerate dimension
         tests:
           - unique
           - not_null
-      - name: customer_key
+      - name: customer_id
         description: FK → dim_customer
         tests:
           - not_null
           - relationships:
               arguments:
                 to: ref('dim_customer')
-                field: customer_key
-      - name: card_key
+                field: customer_id
+      - name: card_id
         description: FK → dim_card
         tests:
           - not_null
           - relationships:
               arguments:
                 to: ref('dim_card')
-                field: card_key
+                field: card_id
       - name: date_key
         description: FK → dim_date (seed), format YYYYMMDD
         tests:
@@ -128,7 +116,7 @@ models:
                 to: ref('dim_date')
                 field: date_key
       - name: amount
-        description: Số tiền giao dịch (measure chính)
+        description: Số tiền giao dịch
         tests:
           - not_null
       - name: has_error
