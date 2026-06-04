@@ -189,8 +189,11 @@ LÃI SUẤT → interest_rate (float %)
 
 ```
 DATN/
-├── dags/                          # (Optional) Airflow DAGs (hiện tại chỉ là placeholder)
-│   └── banking_pipeline_dag.py
+├── dags/                          # Airflow DAGs (điểm vào điều phối)
+│   ├── banking_structured_dag.py  # ETL chính: Bronze → Silver → Gold (@daily 02:00)
+│   ├── data_quality_dag.py        # DQ checks sau structured DAG (@daily 04:00)
+│   ├── ocr_unstructured_dag.py    # OCR CCCD + sổ tiết kiệm → Bronze (manual)
+│   └── common/                    # constants, operators (audit), callbacks
 ├── scripts/
 │   ├── extract/
 │   │   # Structured → Bronze (TDY/PDY) + compute MNS
@@ -256,7 +259,7 @@ dbt: Silver → Gold (Star Schema)
 Power BI / Analytics
 ```
 
-**Orchestration**: Airflow DAG (`dags/banking_pipeline_dag.py`)
+**Orchestration**: Airflow DAG (`dags/banking_structured_dag.py`)
 
 ### 5.2. Unstructured Data Flow (Simple Pipeline)
 
@@ -389,7 +392,7 @@ dbt run --select tag:satellite
 cd ..
 ```
 
-Ghi chú: folder `dags/` hiện là placeholder; nếu bạn muốn orchestrate bằng Airflow cần bổ sung DAG/tasks tương ứng.
+Ghi chú: các bước thủ công ở trên đã được orchestrate sẵn trong `dags/banking_structured_dag.py` (precheck → extract → MNS → validate → dbt silver → dbt gold → notify). Chạy bằng Airflow qua `docker compose up -d`.
 
 ---
 
@@ -582,7 +585,7 @@ RuntimeError: PaddlePaddle encountered an error related to PIR/oneDNN
 
 - Kiểm tra SQL Server đang chạy
 - Kiểm tra connection string trong `scripts/utils/db_connection.py`
-- Đảm bảo database `banking_pipeline` tồn tại
+- Đảm bảo database `DATN` (theo `TARGET_DATABASE` trong `.env`) tồn tại
 - Chạy SQL script để tạo tables trước
 
 ### No images found
