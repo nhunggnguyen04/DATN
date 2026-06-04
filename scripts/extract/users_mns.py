@@ -43,15 +43,49 @@ WHERE
     OR ISNULL(t.credit_score, -1) <> ISNULL(p.credit_score, -1)
     OR ISNULL(t.num_credit_cards, -1) <> ISNULL(p.num_credit_cards, -1);
 
--- D: Có trong PDY nhưng không có trong TDY
-INSERT INTO bronze.users_mns (id, operation_flag)
+-- KHÔNG sinh cờ 'D': ở chế độ load-theo-ngày, TDY chỉ chứa users có giao dịch trong
+-- ngày run_date. Một user vắng mặt hôm nay (không giao dịch) KHÔNG có nghĩa bị xóa khỏi
+-- source → nếu đánh 'D' sẽ khiến sat_customer_profile soft-delete nhầm hàng loạt.
+
+-- Cập nhật PDY thành snapshot LŨY KẾ: SAU khi đã tính I/U dựa trên PDY cũ, upsert toàn bộ
+-- TDY (trạng thái mới nhất hôm nay) vào PDY. Nhờ vậy PDY luôn giữ trạng thái gần nhất của
+-- MỌI user đã từng xuất hiện → khi user quay lại giao dịch sau nhiều ngày, diff so với lần
+-- thấy gần nhất nên đổi thuộc tính được đánh đúng 'U' (không bị nhầm 'I'), SCD2 chuẩn.
+DELETE FROM bronze.users_pdy
+WHERE id IN (SELECT id FROM bronze.users_tdy);
+
+INSERT INTO bronze.users_pdy (
+    id,
+    current_age,
+    retirement_age,
+    birth_year,
+    birth_month,
+    gender,
+    address,
+    latitude,
+    longitude,
+    per_capita_income,
+    yearly_income,
+    total_debt,
+    credit_score,
+    num_credit_cards
+)
 SELECT
-    p.id,
-    'D' AS operation_flag
-FROM bronze.users_pdy p
-LEFT JOIN bronze.users_tdy t
-    ON p.id = t.id
-WHERE t.id IS NULL;
+    id,
+    current_age,
+    retirement_age,
+    birth_year,
+    birth_month,
+    gender,
+    address,
+    latitude,
+    longitude,
+    per_capita_income,
+    yearly_income,
+    total_debt,
+    credit_score,
+    num_credit_cards
+FROM bronze.users_tdy;
 """
 
 

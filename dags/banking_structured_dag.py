@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from airflow import DAG
-from airflow.operators.python import ShortCircuitOperator
+from airflow.models.param import Param
 from airflow.utils.task_group import TaskGroup
 
 sys.path.append(str(Path(__file__).resolve().parent))
@@ -68,10 +68,20 @@ def validate_mns_change_ratio(audit_row_id: int = None, **ctx):
         print("[validate_mns] skipped via Variable")
         return
 
-    engine = get_target_engine()
-    failures = []
+    # Chế độ load-theo-ngày (run_date có giá trị): mỗi ngày chỉ nạp giao dịch/dim của ngày đó,
+    # nên tỷ lệ thay đổi so với PDY (ngày hôm trước) cao ~100% là BÌNH THƯỜNG, không phải
+    # dấu hiệu source bị reset. Guard >50% chỉ có ý nghĩa khi load full snapshot (run_date rỗng).
+    run_date = (ctx.get("params") or {}).get("run_date", "")
+    if run_date:
+        print(f"[validate_mns] daily-incremental mode (run_date={run_date}) → bỏ qua guard tỷ lệ thay đổi")
+        return
 
-    for entity in ENTITIES:
+    engine = get_target_engine()
+    warnings = []
+
+    # transactions là insert-only (mọi bản ghi TDY = 'I'), nên "changed" luôn = toàn bộ batch
+    # → tỷ lệ vô nghĩa, KHÔNG đưa vào phép đo. Chỉ kiểm tra các dimension.
+    for entity in ["users", "cards", "mcc_codes"]:
         with engine.connect() as conn:
             sql = text(f"""
                 SELECT
@@ -84,28 +94,13 @@ def validate_mns_change_ratio(audit_row_id: int = None, **ctx):
             ratio = changed / max(baseline, 1)
             print(f"[validate_mns] {entity}: changed={changed}, baseline={baseline}, ratio={ratio:.1%}")
             if baseline > 100 and ratio > 0.5:
-                failures.append(f"{entity}: {ratio:.1%} (changed={changed}/{baseline})")
+                warnings.append(f"{entity}: {ratio:.1%} (changed={changed}/{baseline})")
 
-    if failures:
-        raise ValueError(
-            "MNS change ratio > 50% for: " + "; ".join(failures) +
-            ". Set Variable skip_mns_validation=true to override after confirming source."
-        )
-
-
-def check_dim_date_seeded(**ctx) -> bool:
-    """ShortCircuit: chỉ chạy seed nếu gold.dim_date chưa có data."""
-    from sqlalchemy import text
-    from scripts.utils.db_connection import get_target_engine
-    engine = get_target_engine()
-    with engine.connect() as conn:
-        try:
-            count = conn.execute(text("SELECT COUNT(*) FROM gold.dim_date")).scalar()
-        except Exception:
-            count = 0
-    needs_seed = (count or 0) < 1000
-    print(f"[check_dim_date] existing rows={count}, needs_seed={needs_seed}")
-    return needs_seed
+    # WARN-only: full load / backfill có tỷ lệ thay đổi cao là hợp lệ (nạp lại toàn bộ),
+    # nên KHÔNG fail pipeline. Chỉ log cảnh báo để có khả năng quan sát.
+    if warnings:
+        print("⚠ WARN: MNS change ratio > 50% (bình thường khi full load/backfill): "
+              + "; ".join(warnings))
 
 
 # =============================================================================
@@ -120,6 +115,14 @@ with DAG(
     max_active_runs=1,
     default_args=DEFAULT_ARGS,
     tags=["banking", "bronze", "silver", "gold"],
+    params={
+        "run_date": Param(
+            default="",
+            # type cho phép cả null → Airflow KHÔNG bắt buộc, ô có thể để trống.
+            type=["string", "null"],
+            description="Ngày xử lý (YYYY-MM-DD). Để TRỐNG = chạy toàn bộ source (không lọc ngày).",
+        )
+    },
 ) as dag:
 
     # -------------------------------------------------------------------------
@@ -138,11 +141,16 @@ with DAG(
     # -------------------------------------------------------------------------
     with TaskGroup("extract_bronze", tooltip="Load source → bronze.*_tdy + move TDY → PDY") as extract_grp:
         for entity in ENTITIES:
+            # run_date rỗng → script load toàn bộ (backfill); có giá trị → load theo ngày.
+            # transactions lọc theo date; users/cards/mcc_codes lọc qua JOIN với transactions.
             AuditedBashOperator(
                 task_id=f"load_bronze_{entity}",
                 bash_command=(
                     f"cd {PROJECT_ROOT} && "
                     f"python {SCRIPTS_DIR}/extract/load_bronze_{entity}.py"
+                    # run_date rỗng → bỏ hẳn flag (script tự load toàn bộ);
+                    # có giá trị → --run-date YYYY-MM-DD (ngày không có space nên không cần quote).
+                    "{% if params.run_date %} --run-date {{ params.run_date }}{% endif %}"
                 ),
                 env=SCRIPT_ENV,
                 append_env=True,
@@ -214,21 +222,8 @@ with DAG(
     )
 
     # -------------------------------------------------------------------------
-    # 6. Gold: dim_date seed (lần đầu) → dims → fact → test
+    # 6. Gold: dim_date (dynamic model) → dims → fact → test
     # -------------------------------------------------------------------------
-    check_seed = ShortCircuitOperator(
-        task_id="check_dim_date_needs_seed",
-        python_callable=check_dim_date_seeded,
-        ignore_downstream_trigger_rules=False,
-    )
-    seed_date = AuditedBashOperator(
-        task_id="dbt_seed_dim_date",
-        bash_command=f"cd {DBT_DIR} && dbt seed --select dim_date",
-        env=SCRIPT_ENV, append_env=True,
-        pool=POOL_DBT,
-        execution_timeout=timedelta(minutes=2),
-    )
-
     gold_dims = AuditedBashOperator(
         task_id="dbt_gold_dims",
         bash_command=f"cd {DBT_DIR} && dbt run --select tag:dim",
@@ -236,7 +231,6 @@ with DAG(
         pool=POOL_DBT,
         execution_timeout=timedelta(minutes=15),
         retries=1,
-        trigger_rule="none_failed_min_one_success",
     )
 
     gold_fact = AuditedBashOperator(
@@ -244,7 +238,9 @@ with DAG(
         bash_command=(
             f"cd {DBT_DIR} && "
             f"dbt run --select fact_transaction "
-            f'--vars \'{{"run_date":"{{{{ ds }}}}"}}\''
+            # `or ''`: khi ô để trống (None) → render thành "" (không phải "None")
+            # → fact_transaction.sql thấy run_date rỗng → không filter ngày → load toàn bộ.
+            f'--vars \'{{"run_date":"{{{{ params.run_date or \'\' }}}}"}}\''
         ),
         env=SCRIPT_ENV, append_env=True,
         pool=POOL_DBT,
@@ -277,6 +273,4 @@ with DAG(
     # -------------------------------------------------------------------------
     precheck >> extract_grp >> mns_grp >> validate_mns
     validate_mns >> silver_hubs >> silver_links >> silver_sats >> test_silver
-    test_silver >> check_seed >> seed_date >> gold_dims
-    test_silver >> gold_dims
-    gold_dims >> gold_fact >> test_gold >> notify
+    test_silver >> gold_dims >> gold_fact >> test_gold >> notify

@@ -99,8 +99,7 @@ with DAG(
             f"cd {PROJECT_ROOT} && "
             f"python {SCRIPTS_DIR}/extract/ocr_extract_savings_book.py "
             f"--input-dir {DATA_DIR}/unstructured/documents/doc_type=savings_book/run_date=2026-05-29 "
-            f"--run-date {{{{ ds }}}} "
-            f"--limit 10"
+            f"--run-date {{{{ ds }}}}"
         ),
         env=SCRIPT_ENV, append_env=True,
         pool=POOL_OCR,

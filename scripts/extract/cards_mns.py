@@ -41,15 +41,44 @@ WHERE
     OR ISNULL(t.acct_open_date, CONVERT(DATE, '1900-01-01')) <> ISNULL(p.acct_open_date, CONVERT(DATE, '1900-01-01'))
     OR ISNULL(t.year_pin_last_changed, -1) <> ISNULL(p.year_pin_last_changed, -1);
 
--- D: Có trong PDY nhưng không có trong TDY
-INSERT INTO bronze.cards_mns (id, operation_flag)
+-- KHÔNG sinh cờ 'D': ở chế độ load-theo-ngày, TDY chỉ chứa cards có giao dịch trong
+-- ngày run_date. Một card vắng mặt hôm nay KHÔNG có nghĩa bị xóa khỏi source → nếu đánh
+-- 'D' sẽ khiến sat_card_detail soft-delete nhầm hàng loạt.
+
+-- Cập nhật PDY thành snapshot LŨY KẾ: SAU khi tính I/U dựa trên PDY cũ, upsert toàn bộ
+-- TDY vào PDY. PDY giữ trạng thái gần nhất của MỌI card đã thấy → đổi thuộc tính của card
+-- quay lại giao dịch sau nhiều ngày được đánh đúng 'U', SCD2 chuẩn.
+DELETE FROM bronze.cards_pdy
+WHERE id IN (SELECT id FROM bronze.cards_tdy);
+
+INSERT INTO bronze.cards_pdy (
+    id,
+    client_id,
+    card_brand,
+    card_type,
+    card_number,
+    expires,
+    cvv,
+    has_chip,
+    num_cards_issued,
+    credit_limit,
+    acct_open_date,
+    year_pin_last_changed
+)
 SELECT
-    p.id,
-    'D' AS operation_flag
-FROM bronze.cards_pdy p
-LEFT JOIN bronze.cards_tdy t
-    ON p.id = t.id
-WHERE t.id IS NULL;
+    id,
+    client_id,
+    card_brand,
+    card_type,
+    card_number,
+    expires,
+    cvv,
+    has_chip,
+    num_cards_issued,
+    credit_limit,
+    acct_open_date,
+    year_pin_last_changed
+FROM bronze.cards_tdy;
 """
 
 

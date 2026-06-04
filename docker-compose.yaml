@@ -55,7 +55,7 @@ services:
       test: ["CMD", "pg_isready", "-U", "airflow"]
       interval: 10s
       retries: 5
-    restart: always
+    restart: unless-stopped
 
   airflow-init:
     <<: *airflow-common
@@ -82,7 +82,7 @@ services:
       test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
       interval: 30s
       retries: 5
-    restart: always
+    restart: unless-stopped
     depends_on:
       airflow-init:
         condition: service_completed_successfully
@@ -90,7 +90,7 @@ services:
   airflow-scheduler:
     <<: *airflow-common
     command: scheduler
-    restart: always
+    restart: unless-stopped
     depends_on:
       airflow-init:
         condition: service_completed_successfully

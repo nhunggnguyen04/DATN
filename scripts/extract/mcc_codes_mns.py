@@ -31,15 +31,22 @@ INNER JOIN bronze.mcc_codes_pdy p
 WHERE
     ISNULL(t.description, '') <> ISNULL(p.description, '');
 
--- D: Có trong PDY nhưng không có trong TDY
-INSERT INTO bronze.mcc_codes_mns (mcc_id, operation_flag)
+-- KHÔNG sinh cờ 'D': ở chế độ load-theo-ngày, TDY chỉ chứa mcc_codes xuất hiện trong
+-- giao dịch ngày run_date. Một mcc vắng mặt hôm nay KHÔNG có nghĩa bị xóa khỏi source.
+
+-- Cập nhật PDY thành snapshot LŨY KẾ: SAU khi tính I/U dựa trên PDY cũ, upsert toàn bộ
+-- TDY vào PDY → PDY giữ trạng thái gần nhất của MỌI mcc đã thấy, diff về sau luôn chính xác.
+DELETE FROM bronze.mcc_codes_pdy
+WHERE mcc_id IN (SELECT mcc_id FROM bronze.mcc_codes_tdy);
+
+INSERT INTO bronze.mcc_codes_pdy (
+    mcc_id,
+    description
+)
 SELECT
-    p.mcc_id,
-    'D' AS operation_flag
-FROM bronze.mcc_codes_pdy p
-LEFT JOIN bronze.mcc_codes_tdy t
-    ON p.mcc_id = t.mcc_id
-WHERE t.mcc_id IS NULL;
+    mcc_id,
+    description
+FROM bronze.mcc_codes_tdy;
 """
 
 
