@@ -1,0 +1,666 @@
+\chapter{Phân tích và thiết kế hệ thống}
+\label{ch:analysis-design}
+
+\section{Đề xuất kiến trúc giải pháp}
+\label{sec:solution-arch}
+
+Dựa trên những phân tích về hiện trạng và các vấn đề tồn đọng ở Chương 2, đồ án đề xuất giải pháp xây dựng hệ thống dữ liệu theo hướng \textbf{Modern Data Stack triển khai nội bộ (On-premise)} kết hợp với mô hình lưu trữ đa tầng và chiến lược nạp \textbf{ELT}. Đề xuất này dựa trên các cơ sở thiết kế sau:
+
+\subsection{Lựa chọn kiến trúc tổng thể và chiến lược nạp}
+
+\begin{itemize}
+    \item \textbf{Kiến trúc Modern Data Stack On-premise:}
+    \begin{itemize}
+        \item \textit{Đáp ứng toàn diện yêu cầu:} Khắc phục hoàn toàn những giới hạn của kiến trúc Legacy và Hybrid, hệ thống mới đáp ứng đầy đủ các yêu cầu chức năng phức tạp như lưu vết lịch sử, tự động hóa quy trình, kiểm soát chất lượng dữ liệu (DQ) và xử lý dữ liệu phi cấu trúc.
+        \item \textit{Tối ưu chi phí:} Toàn bộ ngăn xếp (stack) sử dụng các công nghệ mã nguồn mở (Open-source), giúp hệ thống không phát sinh các khoản chi phí bản quyền (license) đắt đỏ.
+        \item \textit{Tuân thủ pháp lý:} Việc vận hành hoàn toàn trên hạ tầng nội bộ (on-premise) đảm bảo tuân thủ tuyệt đối quy định về lưu trữ dữ liệu cá nhân trong nước theo Nghị định 13/2023/NĐ-CP.
+    \end{itemize}
+
+    \item \textbf{Chiến lược nạp ELT (Extract $\rightarrow$ Load $\rightarrow$ Transform):}
+    \begin{itemize}
+        \item Hệ thống thực hiện trích xuất và nạp (Load) toàn bộ dữ liệu thô vào tầng Bronze trước, sau đó mới tiến hành biến đổi (Transform) bằng công cụ dbt ngay bên trong kho dữ liệu.
+        \item Chiến lược này giúp phân tách rạch ròi trách nhiệm của các công cụ: Python chỉ chuyên trách Extract \& Load, trong khi dbt chỉ tập trung xử lý Transform. Điều này giúp hệ thống cực kỳ dễ bảo trì và gỡ lỗi (debug).
+    \end{itemize}
+\end{itemize}
+
+\subsection{Lựa chọn mô hình tổ chức dữ liệu}
+
+Hệ thống ứng dụng \textbf{kiến trúc Medallion (Bronze $\rightarrow$ Silver $\rightarrow$ Gold)} để phân tầng dữ liệu theo mức độ tinh sạch, mỗi tầng phục vụ một mục đích và nhóm người dùng riêng biệt. Trong đó, tầng \textbf{Bronze} đóng vai trò giữ lại dữ liệu thô nguyên bản, cho phép hệ thống dễ dàng tái xử lý lại thông tin khi logic nghiệp vụ thay đổi mà không cần phải trích xuất lại từ đầu. Các tầng tiếp theo được mô hình hóa chi tiết như sau:
+
+\begin{itemize}
+    \item \textbf{Mô hình hóa tầng Silver (Data Vault 2.0):}
+    \begin{itemize}
+        \item \textit{Lưu trữ lịch sử toàn diện:} Sử dụng bảng Satellite kết hợp kỹ thuật SCD Type 2 để ghi nhận mọi thay đổi, giúp hệ thống có khả năng trả lời chính xác câu hỏi "Dữ liệu tại thời điểm X trong quá khứ là gì?".
+        \item \textit{Tính linh hoạt và mở rộng:} Cấu trúc tách biệt giữa khóa (Hub/Link) và thuộc tính (Satellite) giúp việc bổ sung thêm nguồn dữ liệu hoặc các trường thông tin mới không làm phá vỡ mô hình hiện hành.
+        \item \textit{Tối ưu hiệu suất:} Thiết kế các bảng độc lập cho phép điều phối viên (Airflow) nạp dữ liệu song song thông qua cơ chế Pool, giúp giảm thiểu đáng kể tổng thời gian chạy luồng.
+    \end{itemize}
+
+    \item \textbf{Mô hình hóa tầng Gold (Star Schema):}
+    \begin{itemize}
+        \item \textit{Tối ưu truy vấn và báo cáo:} Với bảng sự kiện (Fact table) ở trung tâm và các bảng chiều (Dimension) bao quanh, Star Schema tạo ra cơ chế lọc chéo (cross-filter) tự nhiên trong Power BI. Thiết kế này hạn chế các phép kết nối (join) phức tạp, mang lại tốc độ truy vấn vượt trội.
+        \item \textit{Phục vụ trực tiếp nghiệp vụ:} Cấu trúc mô hình sao được thiết kế để giải quyết trực tiếp hai chủ đề phân tích đã xác định ở Chương 2, bao gồm: Bài toán CD1 (Phân khúc khách hàng \& Marketing) và Bài toán CD2 (Phân tích giao dịch \& Quản trị rủi ro).
+    \end{itemize}
+\end{itemize}
+
+
+
+
+\section{Kiến trúc tổng thể hệ thống}
+\label{sec:overall-arch}
+Sơ đồ kiến trúc tổng quan — hai pipeline độc lập, các thành phần như sau:
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[
+        >=Stealth,
+        % Định nghĩa style cho các khối
+        layer_box/.style={rectangle, draw=black, thick, minimum width=9cm, minimum height=1.2cm, align=center, outer sep=0pt},
+        % Đã sửa lỗi LR Mode: Thay minimum width thành text width
+        bronze_box/.style={rectangle, draw=black, thick, text width=8.5cm, align=left, inner sep=10pt, outer sep=0pt, fill=gray!5},
+        arrow/.style={->, thick, draw=black},
+        dashed_arrow/.style={->, thick, dashed, draw=black}
+    ]
+
+    % --- KHỐI SOURCE ---
+    \node (source) at (0,0) {\textbf{SOURCE} (SQL Server + Ảnh tự sinh)};
+
+    % --- KHỐI BRONZE LAYER ---
+    \node[bronze_box, below=1.2cm of source] (bronze) {
+        {\centering \textbf{BRONZE LAYER} \par} % Đã sửa cách căn giữa an toàn hơn
+        \vspace{0.2em}
+        \rule{\linewidth}{0.5pt} \\[0.8em]
+        \textbf{Structured:}\\
+        \hspace*{0.5cm} $\bullet$ \texttt{users\_tdy/pdy/mns}\\
+        \hspace*{0.5cm} $\bullet$ \texttt{cards\_tdy/pdy/mns}\\
+        \hspace*{0.5cm} $\bullet$ \texttt{transactions\_tdy/pdy/mns}\\
+        \hspace*{0.5cm} $\bullet$ \texttt{mcc\_codes\_tdy/pdy/mns}\\[1em]
+        \textbf{Unstructured:}\\
+        \hspace*{0.5cm} $\bullet$ \texttt{id\_card\_results}\\
+        \hspace*{0.5cm} $\bullet$ \texttt{savings\_book\_results}
+    };
+
+    % --- KHỐI SILVER, GOLD VÀ CONSUMPTION (Nằm sát nhau) ---
+    \node[layer_box, below=2.5cm of bronze] (silver) {\textbf{SILVER LAYER} (Structured Only)\\Data Vault Model};
+    \node[layer_box, anchor=north] (gold) at (silver.south) {\textbf{GOLD LAYER}\\Star Schema (Dimensional)};
+    \node[layer_box, anchor=north] (consumption) at (gold.south) {\textbf{CONSUMPTION}\\Power BI / Analytics};
+
+    % --- VẼ CÁC MŨI TÊN ---
+    % Mũi tên chia 3 nhánh từ Source xuống Bronze
+    \draw[thick] (source.south) -- ++(0,-0.4) coordinate (fork);
+    \draw[thick] ([xshift=-2.5cm]fork) -- ([xshift=2.5cm]fork);
+    \draw[arrow] ([xshift=-2.5cm]fork) -- ([xshift=-2.5cm]fork |- bronze.north);
+    \draw[arrow] (fork) -- (fork |- bronze.north);
+    \draw[arrow] ([xshift=2.5cm]fork) -- ([xshift=2.5cm]fork |- bronze.north);
+
+    % Mũi tên đứt nét từ Bronze xuống Silver
+    \draw[dashed_arrow] ([xshift=-2cm]bronze.south) -- ([xshift=-2cm]silver.north);
+
+    % Mũi tên đứt nét từ Bronze ra Direct Queries
+    \draw[dashed_arrow] ([xshift=2cm]bronze.south) -- ++(0,-1.2) node[below] {\texttt{Direct Queries}};
+
+    \end{tikzpicture}
+    \caption{Kiến trúc luồng xử lý phân tầng của hệ thống}
+    \label{fig:overall_architecture}
+\end{figure}
+
+
+% TODO: Luồng tổng quan: nguồn OLTP → Extract → Bronze → MNS → Silver
+% (Data Vault) → Gold (Star Schema) → Power BI. Điều phối bằng Airflow.
+
+
+
+\subsection{Pipeline dữ liệu phi cấu trúc (OCR)}
+Do đặc thù ngành ngân hàng, các chứng từ như Căn cước công dân (CCCD) hay Sổ tiết kiệm chứa đựng lượng lớn dữ liệu cá nhân nhạy cảm (PII - Personally Identifiable Information). Việc sử dụng hình ảnh thực tế của khách hàng cho quá trình phát triển, thử nghiệm và trình diễn là vi phạm nghiêm trọng các quy định về bảo mật, đặc biệt là Nghị định 13/2023/NĐ-CP về bảo vệ dữ liệu cá nhân.
+
+Để giải quyết triệt để rào cản pháp lý này, toàn bộ hình ảnh đầu vào được sử dụng để chạy thực nghiệm trong pipeline OCR đều là \textbf{dữ liệu giả lập (synthetic data)}. Cụ thể, một tập lệnh (script) Python tự động hóa đã được xây dựng để sinh ra các hình ảnh chứng từ dựa trên phôi mẫu chuẩn của nhà nước và ngân hàng. 
+
+Quá trình giả lập này được thực hiện qua hai bước tinh vi:
+\begin{itemize}
+    \item \textit{Sinh nội dung ngẫu nhiên:} Điền các thông tin định danh hoàn toàn giả lập (họ tên, số ID, địa chỉ, số tiền...) vào các trường tương ứng trên phôi mẫu.
+    \item \textit{Mô phỏng điều kiện thực tế:} Chủ động thêm vào các hiệu ứng nhiễu hình học và quang học bằng thuật toán (như làm mờ, xoay nghiêng, nhiễu hạt, chói sáng cục bộ hay đổ bóng).
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{img3/id_card_scan.jpg }
+    \caption{Mẫu hình ảnh CCCD tự sinh}
+    \label{fig:synthetic-cccd-sample}
+\end{figure}
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{img3/savings_book_scan.jpg }
+    \caption{Mẫu hình ảnh sổ tiết kiệm tự sinh}
+    \label{fig:synthetic-savings-book-sample}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+
+%% ════════════════════════════════════════════════
+%%  LUỒNG 1 — CCCD
+%% ════════════════════════════════════════════════
+\begin{subfigure}[t]{0.48\textwidth}
+\centering
+\begin{tikzpicture}[
+  >=Stealth, node distance=0.38cm,
+  iobox/.style={rectangle, rounded corners=2pt, draw=gray!60, fill=gray!15, text width=5.2cm, minimum height=0.62cm, align=center, font=\footnotesize},
+  geom/.style={rectangle, rounded corners=2pt, draw=blue!50, fill=blue!10, text width=5.2cm, minimum height=0.62cm, align=center, font=\footnotesize},
+  geom2/.style={rectangle, rounded corners=2pt, draw=blue!70, fill=blue!22, text width=5.2cm, minimum height=0.62cm, align=center, font=\footnotesize\itshape},
+  enh/.style={rectangle, rounded corners=2pt, draw=teal!60, fill=teal!10, text width=5.2cm, minimum height=0.62cm, align=center, font=\footnotesize},
+  enh2/.style={rectangle, rounded corners=2pt, draw=teal!70, fill=teal!22, text width=5.2cm, minimum height=0.62cm, align=center, font=\footnotesize\itshape},
+  ocrbox/.style={rectangle, rounded corners=2pt, draw=orange!60, fill=orange!10, text width=5.2cm, minimum height=0.62cm, align=center, font=\footnotesize},
+  ocrbox2/.style={rectangle, rounded corners=2pt, draw=orange!70, fill=orange!22, text width=5.2cm, minimum height=0.62cm, align=center, font=\footnotesize\itshape},
+  postbox/.style={rectangle, rounded corners=2pt, draw=green!60, fill=green!10, text width=5.2cm, minimum height=0.62cm, align=center, font=\footnotesize},
+  arr/.style={->, thick, draw=gray!60},
+  lbl/.style={font=\scriptsize\bfseries, rotate=90, anchor=center},
+]
+
+\node[iobox] (inp) {\textbf{Ảnh CCCD}};
+
+\node[geom,  below=0.5cm of inp] (g1) {Chỉnh nghiêng};
+\node[geom,  below=of g1]        (g2) {Phát hiện biên thẻ};
+\node[geom,  below=of g2]        (g3) {Căn phẳng phối cảnh};
+\node[geom2, below=of g3]        (g4) {Chuẩn hóa chiều †};
+
+\node[enh,  below=0.5cm of g4] (e1) {Chuyển ảnh xám};
+\node[enh,  below=of e1]       (e2) {Khử nhiễu};
+\node[enh,  below=of e2]       (e3) {Tăng tương phản cục bộ};
+\node[enh,  below=of e3]       (e4) {Làm sắc nét};
+\node[enh2, below=of e4]       (e5) {Ngưỡng hóa thích nghi †};
+
+\node[ocrbox,  below=0.5cm of e5] (o1) {Nhận dạng ký tự toàn ảnh};
+\node[ocrbox2, below=of o1]       (o2) {Trích xuất theo nhãn (ưu tiên) †};
+\node[ocrbox,  below=of o2]       (o3) {Trích xuất theo vùng (dự phòng)};
+
+\node[postbox, below=0.5cm of o3] (p1) {Chuẩn hóa \& phân tích cú pháp};
+\node[postbox, below=of p1]       (p2) {Tính điểm tin cậy};
+
+\node[iobox, below=of p2] (out) {\textbf{9 trường} + điểm tin cậy};
+
+\foreach \a/\b in {
+  inp/g1, g1/g2, g2/g3, g3/g4, g4/e1,
+  e1/e2, e2/e3, e3/e4, e4/e5, e5/o1,
+  o1/o2, o2/o3, o3/p1, p1/p2, p2/out}
+{ \draw[arr] (\a)--(\b); }
+
+% Vẽ nhãn nhóm CCCD
+\path (g1.north west) ++(-0.2cm, 0) coordinate (g_top1);
+\path (g4.south west) ++(-0.2cm, 0) coordinate (g_bot1);
+\draw[decorate,decoration={brace,mirror,amplitude=4pt},draw=blue!50,thick]
+  (g_top1) -- (g_bot1) node[midway,left=6pt,lbl,text=blue!60]{Hình học};
+
+\path (e1.north west) ++(-0.2cm, 0) coordinate (e_top1);
+\path (e5.south west) ++(-0.2cm, 0) coordinate (e_bot1);
+\draw[decorate,decoration={brace,mirror,amplitude=4pt},draw=teal!60,thick]
+  (e_top1) -- (e_bot1) node[midway,left=6pt,lbl,text=teal!60]{Tăng cường};
+
+\path (o1.north west) ++(-0.2cm, 0) coordinate (o_top1);
+\path (o3.south west) ++(-0.2cm, 0) coordinate (o_bot1);
+\draw[decorate,decoration={brace,mirror,amplitude=4pt},draw=orange!60,thick]
+  (o_top1) -- (o_bot1) node[midway,left=6pt,lbl,text=orange!60]{OCR};
+
+\path (p1.north west) ++(-0.2cm, 0) coordinate (p_top1);
+\path (p2.south west) ++(-0.2cm, 0) coordinate (p_bot1);
+\draw[decorate,decoration={brace,mirror,amplitude=4pt},draw=green!60,thick]
+  (p_top1) -- (p_bot1) node[midway,left=6pt,lbl,text=green!60]{Hậu xử lý};
+
+\end{tikzpicture}
+\caption{Căn cước công dân (CCCD)}
+\end{subfigure}
+\hfill
+%% ════════════════════════════════════════════════
+%%  LUỒNG 2 — SỔ TIẾT KIỆM
+%% ════════════════════════════════════════════════
+\begin{subfigure}[t]{0.48\textwidth}
+\centering
+\begin{tikzpicture}[
+  >=Stealth, node distance=0.38cm,
+  iobox/.style={rectangle, rounded corners=2pt, draw=gray!60, fill=gray!15, text width=5.2cm, minimum height=0.62cm, align=center, font=\footnotesize},
+  geom/.style={rectangle, rounded corners=2pt, draw=blue!50, fill=blue!10, text width=5.2cm, minimum height=0.62cm, align=center, font=\footnotesize},
+  enh/.style={rectangle, rounded corners=2pt, draw=teal!60, fill=teal!10, text width=5.2cm, minimum height=0.62cm, align=center, font=\footnotesize},
+  ocrbox/.style={rectangle, rounded corners=2pt, draw=orange!60, fill=orange!10, text width=5.2cm, minimum height=0.62cm, align=center, font=\footnotesize},
+  postbox/.style={rectangle, rounded corners=2pt, draw=green!60, fill=green!10, text width=5.2cm, minimum height=0.62cm, align=center, font=\footnotesize},
+  arr/.style={->, thick, draw=gray!60},
+  lbl/.style={font=\scriptsize\bfseries, rotate=90, anchor=center},
+]
+
+\node[iobox] (inp) {\textbf{Ảnh sổ tiết kiệm}};
+
+\node[geom, below=0.5cm of inp] (g1) {Chỉnh nghiêng};
+\node[geom, below=of g1]        (g2) {Phát hiện biên tài liệu};
+\node[geom, below=of g2]        (g3) {Căn phẳng phối cảnh};
+
+\node[enh, below=0.5cm of g3] (e1) {Chuyển ảnh xám};
+\node[enh, below=of e1]       (e2) {Khử nhiễu};
+\node[enh, below=of e2]       (e3) {Tăng tương phản cục bộ};
+\node[enh, below=of e3]       (e4) {Làm sắc nét};
+
+\node[ocrbox, below=0.5cm of e4] (o1) {Trích xuất theo 7 vùng định sẵn};
+\node[ocrbox, below=of o1]       (o2) {Thử nhiều biến thể, chọn tốt nhất};
+
+\node[postbox, below=0.5cm of o2] (p1) {Chuẩn hóa \& phân tích cú pháp};
+\node[postbox, below=of p1]       (p2) {Tính điểm tin cậy};
+
+\node[iobox, below=of p2] (out) {\textbf{7 trường} + điểm tin cậy};
+
+\foreach \a/\b in {
+  inp/g1, g1/g2, g2/g3, g3/e1,
+  e1/e2, e2/e3, e3/e4, e4/o1,
+  o1/o2, o2/p1, p1/p2, p2/out}
+{ \draw[arr] (\a)--(\b); }
+
+% Vẽ nhãn nhóm Sổ tiết kiệm
+\path (g1.north west) ++(-0.2cm, 0) coordinate (g_top2);
+\path (g3.south west) ++(-0.2cm, 0) coordinate (g_bot2);
+\draw[decorate,decoration={brace,mirror,amplitude=4pt},draw=blue!50,thick]
+  (g_top2) -- (g_bot2) node[midway,left=6pt,lbl,text=blue!60]{Hình học};
+
+\path (e1.north west) ++(-0.2cm, 0) coordinate (e_top2);
+\path (e4.south west) ++(-0.2cm, 0) coordinate (e_bot2);
+\draw[decorate,decoration={brace,mirror,amplitude=4pt},draw=teal!60,thick]
+  (e_top2) -- (e_bot2) node[midway,left=6pt,lbl,text=teal!60]{Tăng cường};
+
+\path (o1.north west) ++(-0.2cm, 0) coordinate (o_top2);
+\path (o2.south west) ++(-0.2cm, 0) coordinate (o_bot2);
+\draw[decorate,decoration={brace,mirror,amplitude=4pt},draw=orange!60,thick]
+  (o_top2) -- (o_bot2) node[midway,left=6pt,lbl,text=orange!60]{OCR};
+
+\path (p1.north west) ++(-0.2cm, 0) coordinate (p_top2);
+\path (p2.south west) ++(-0.2cm, 0) coordinate (p_bot2);
+\draw[decorate,decoration={brace,mirror,amplitude=4pt},draw=green!60,thick]
+  (p_top2) -- (p_bot2) node[midway,left=6pt,lbl,text=green!60]{Hậu xử lý};
+
+\end{tikzpicture}
+\caption{Sổ tiết kiệm}
+\end{subfigure}
+
+\vspace{0.5cm}
+\raggedright
+{\footnotesize † Bước đặc thù của pipeline CCCD, không áp dụng cho sổ tiết kiệm do kích thước và định dạng tài liệu khác biệt.}
+
+\caption{So sánh luồng xử lý ảnh trong pipeline OCR phi cấu trúc}
+\label{fig:ocr-both-pipelines}
+\end{figure}
+
+Về chi tiết hoạt động, hai luồng xử lý này có những đặc tả nghiệp vụ khác nhau:
+
+\begin{itemize}
+    \item \textbf{Pipeline xử lý ảnh Căn cước công dân (CCCD):}
+    \begin{itemize}
+        \item \textit{Tiền xử lý ảnh:} Hình ảnh chụp CCCD thường bị nhiễu do ánh sáng chói hoặc bóng râm. Hệ thống áp dụng thuật toán CLAHE để cân bằng độ tương phản, kết hợp Non-local Means để khử nhiễu hạt. Tiếp theo, thuật toán Canny Edge Detection và Perspective Transform được dùng để nắn phẳng tấm thẻ từ góc chụp nghiêng về dạng hình chữ nhật vuông vức.
+        \item \textit{Trích xuất thông tin:} Mô hình nhận dạng quang học quét toàn bộ ảnh, định vị văn bản và kết hợp với các biểu thức chính quy (Regex) để trích xuất 9 trường dữ liệu cốt lõi (họ tên, ngày sinh, số CCCD, v.v.). Các kết quả có điểm tin cậy (Confidence Score) đạt yêu cầu sẽ được nạp trực tiếp vào bảng \texttt{id\_card\_results} tại tầng Bronze.
+    \end{itemize}
+
+    \item \textbf{Pipeline xử lý ảnh Sổ tiết kiệm:}
+    \begin{itemize}
+        \item \textit{Tiền xử lý ảnh:} Tương tự như CCCD, hệ thống làm sạch và chuẩn hóa hình ảnh sổ tiết kiệm. Tuy nhiên, luồng này bỏ qua các bước không cần thiết đối với giấy tờ dạng khổ lớn như chuẩn hóa chiều hay ngưỡng hóa thích nghi phức tạp, giúp giảm bớt tài nguyên và tăng tốc độ tính toán.
+        \item \textit{Trích xuất thông tin:} Do định dạng sổ tiết kiệm đa dạng hơn, hệ thống ưu tiên bóc tách dựa vào 7 vùng định sẵn tương ứng với các trường thông tin (như số tài khoản, số tiền gửi, lãi suất, kỳ hạn). Hệ thống cũng tự động thử nghiệm nhiều biến thể trích xuất và giữ lại kết quả có điểm tin cậy cao nhất trước khi nạp vào bảng \texttt{savings\_book\_results}.
+    \end{itemize}
+\end{itemize}
+\subsection{Pipeline dữ liệu có cấu trúc}
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[
+        >=Stealth,
+        % ==========================================
+        % Định nghĩa Style cho các khối
+        % ==========================================
+        layerbox/.style={rectangle, rounded corners=3pt, draw=gray!80, fill=gray!5, thick, text width=10.5cm, align=center, inner sep=8pt, font=\small},
+        airbox/.style={rectangle, rounded corners=3pt, draw=orange!60, fill=orange!5, thick, text width=5.5cm, align=center, inner sep=6pt, font=\small},
+        pgbox/.style={rectangle, rounded corners=3pt, draw=blue!50, fill=blue!5, thick, text width=3cm, align=center, inner sep=6pt, font=\small},
+        auditbox/.style={rectangle, rounded corners=3pt, draw=purple!60, fill=purple!5, dashed, thick, text width=10.5cm, align=center, inner sep=8pt, font=\small},
+        arr/.style={->, thick, draw=gray!80},
+        lbl/.style={fill=white, font=\footnotesize\ttfamily, align=center, inner sep=2pt}
+    ]
+
+    % ==========================================
+    % 1. MÔI TRƯỜNG DOCKER COMPOSE (HOST)
+    % ==========================================
+    \node[airbox] (airflow) at (2.5, 0) {
+        \textbf{Apache Airflow} \\
+        \texttt{banking\_structured\_dag @daily 02:00}
+    };
+    
+    \node[pgbox] (pg) at (-3, 0) {
+        \textbf{Postgres} \\
+        (metadata DAG)
+    };
+
+    \draw[arr] (pg) -- (airflow);
+
+    % Vẽ khung đứt nét bao quanh Docker Compose
+    \path (pg.north west) ++(-0.4, 0.6) coordinate (D_TL);
+    \path (airflow.south east) ++(0.4, -0.4) coordinate (D_BR);
+    \draw[thick, dashed, draw=blue!70, rounded corners=4pt] (D_TL) rectangle (D_BR);
+    \node[anchor=north west, font=\bfseries\small, text=blue!70] at (D_TL) {DOCKER COMPOSE (host)};
+
+    % ==========================================
+    % 2. MÔI TRƯỜNG SQL SERVER (HOST MACHINE)
+    % ==========================================
+    % Đã nới rộng tọa độ trục Y của các layer
+    \node[layerbox] (oltp) at (0, -4.0) {
+        \textbf{OLTP}
+    };
+
+    \node[layerbox] (bronze) at (0, -7.5) {
+        \textbf{BRONZE — DATN.bronze} \\
+        \texttt{*\_tdy} (hôm nay) $\xrightarrow{\text{Python}}$ \texttt{*\_pdy} $\cdot$ \texttt{*\_mns}
+    };
+
+    \node[layerbox] (silver) at (0, -11.0) {
+        \textbf{SILVER — DATN.silver — Data Vault 2.0} \\
+        Hub $\cdot$ Link $\cdot$ Satellite SCD2 (MD5 hash key)
+    };
+
+    \node[layerbox] (gold) at (0, -14.5) {
+        \textbf{GOLD — DATN.gold — Star Schema} \\
+        \texttt{dim\_customer $\cdot$ dim\_card $\cdot$ dim\_mcc $\cdot$ dim\_merchant} \\
+        \texttt{dim\_date} $\cdot$ \texttt{fact\_transaction}
+    };
+
+    \node[auditbox] (audit) at (0, -17.2) {
+        \texttt{audit.pipeline\_run\_log} $\xleftarrow{\text{ghi log}}$ \textbf{AuditedOperator} (mọi task)
+    };
+
+    % Vẽ khung liền nét bao quanh SQL Server
+    \path (oltp.north west) ++(-0.4, 0.7) coordinate (S_TL);
+    \path (audit.south east) ++(0.4, -0.4) coordinate (S_BR);
+    \draw[thick, draw=purple!70, rounded corners=4pt] (S_TL) rectangle (S_BR);
+    \node[anchor=north west, font=\bfseries\small, text=purple!70] at (S_TL) {SQL Server (host machine)};
+
+    % ==========================================
+    % 3. CÁC MŨI TÊN KẾT NỐI (ARROWS) VÀ ĐIỀU PHỐI
+    % ==========================================
+    
+    % Airflow trigger xuống SQL Server (Mũi tên đứt nét trỏ thẳng vào OLTP)
+    \draw[arr, dashed] (airflow.south) -- node[lbl] {trigger tasks} (airflow.south |- oltp.north);
+
+    % Các mũi tên luân chuyển và biến đổi dữ liệu giữa các tầng (ETL/ELT)
+    \draw[arr] (oltp.south) -- node[lbl] {Python + SQLAlchemy \\ \texttt{load\_bronze\_<entity>.py}} (bronze.north);
+    
+    \draw[arr] (bronze.south) -- node[lbl] {dbt \\ \texttt{tag:hub $\rightarrow$ tag:link $\rightarrow$ tag:satellite}} (silver.north);
+    
+    \draw[arr] (silver.south) -- node[lbl] {dbt \\ \texttt{tag:dim $\rightarrow$ fact\_transaction}} (gold.north);
+
+    \end{tikzpicture}
+    \caption{Kiến trúc tổng quan của hệ thống Pipeline xử lý dữ liệu có cấu trúc}
+    \label{fig:structured_pipeline_architecture}
+\end{figure}
+
+
+\section{Thiết kế mô hình dữ liệu cho pipeline có cấu trúc}
+
+
+\subsection{Nguồn OLTP}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{img3/OLTP_removed.png}
+    \caption{Kiến trúc OLTP của hệ thống}
+    \label{fig:bronze-layer-architecture}
+\end{figure}
+
+\subsection{Tầng Bronze}
+\begin{itemize}
+    \item \textbf{Mô hình kiến trúc phân tầng (Medallion Architecture):} Hệ thống được thiết kế theo mô hình đa tầng từ nguồn đến đích nhằm chuẩn hóa và kiểm soát chất lượng dữ liệu:
+    \begin{itemize}
+        \item \textit{Nguồn (Source):} Hệ thống cơ sở dữ liệu gốc từ SQL Server.
+        \item \textit{Tầng Bronze (TDY/PDY/MNS):} Lưu trữ dữ liệu thô với cơ chế phân tách bảng.
+        \item \textit{Tầng Silver (Data Vault 2.0):} Mô hình hóa dữ liệu cốt lõi, bao gồm các \texttt{Hubs} (khóa nghiệp vụ), \texttt{Links} (mối quan hệ) và \texttt{Satellites} (lưu trữ thuộc tính và lịch sử thay đổi).
+        \item \textit{Tầng Gold (Star Schema):} Phục vụ phân tích với bảng sự kiện  và các bảng chiều xung quanh .
+    \end{itemize}
+
+    \item \textbf{Luồng dữ liệu có cấu trúc (Structured Data):}
+    \begin{itemize}
+        \item \textit{Nguồn dữ liệu:} Trích xuất từ SQL Server thuộc schema \texttt{banking}
+        \item \textit{Chiến lược triển khai tại tầng Bronze:} Mỗi thực thể được tổ chức thành một bộ 3 bảng độc lập để phục vụ cơ chế nạp gia tăng (Incremental Load) và kiểm soát thay đổi (Change Data Capture):
+        \begin{itemize}
+            \item \textbf{Thực thể Users:} Gồm \texttt{bronze.users\_tdy} (Snapshot hôm nay), \texttt{bronze.users\_pdy} (Snapshot lũy kế), và \texttt{bronze.users\_mns} (Change-set I/U/D).
+            \item \textbf{Thực thể Cards:} Gồm \texttt{bronze.cards\_tdy} (Snapshot hôm nay), \texttt{bronze.cards\_pdy} (Snapshot lũy kế), và \texttt{bronze.cards\_mns} (Change-set I/U/D).
+            \item \textbf{Thực thể Transactions:} Gồm \texttt{bronze.transactions\_tdy} (Giao dịch hôm nay), \texttt{bronze.transactions\_pdy} (Giao dịch ngày trước), và \texttt{bronze.transactions\_mns} (Change-set chỉ dành cho Insert).
+            \item \textbf{Thực thể MCC Codes:} Gồm \texttt{bronze.mcc\_codes\allowbreak\_tdy} (Snapshot hôm nay), \texttt{bronze.mcc\_codes\allowbreak\_pdy} (Snapshot lũy kế), và  \newline  \texttt{bronze.mcc\_codes\allowbreak\_mns} (Change-set I/U/D).
+        \end{itemize}
+    \end{itemize}
+
+    \item \textbf{Luồng dữ liệu phi cấu trúc (Unstructured Data):}
+    \begin{itemize}
+        \item \textit{Nguồn dữ liệu:} Hình ảnh vật lý của Căn cước công dân (CCCD) và Sổ tiết kiệm. Dữ liệu này được đưa qua pipeline xử lý nhận dạng quang học sử dụng AI (PaddleOCR).
+        \item \textit{Chiến lược triển khai tại tầng Bronze:} Kết quả văn bản sau khi được OCR trích xuất sẽ được lưu trữ trực tiếp vào các bảng đích tương ứng:
+        \begin{itemize}
+            \item \texttt{bronze.id\_card\_results}: Lưu trữ toàn bộ kết quả OCR bóc tách từ ảnh Căn cước công dân.
+            \item \texttt{bronze.savings\_book\_results}: Lưu trữ toàn bộ kết quả OCR bóc tách từ ảnh Sổ tiết kiệm.
+        \end{itemize}
+    \end{itemize}
+\end{itemize}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{img3/bronze.png}
+    \caption{Kiến trúc dữ liệu tầng Bronze}
+    \label{fig:silver-layer-architecture}
+\end{figure}
+
+
+
+
+\subsection{Tầng Silver: Data Vault 2.0}
+Tầng Silver được thiết kế theo mô hình kiến trúc Data Vault để lưu lịch sử thay đổi dữ liệu và dễ dàng mở rộng như hình
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{img3/Silver_Layer.png}
+    \caption{Kiến trúc dữ liệu tầng Silver}
+    \label{fig:gold-layer-architecture}
+\end{figure}
+
+\subsection{Tầng Gold: Star Schema}
+Tầng Gold được thiết kế theo Start Schema với các bảng Dim và Fact 
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{img3/Gold_Layer.png}
+    \caption{Kiến trúc dữ liệu tầng Gold}
+    \label{fig:oltp-source-model}
+\end{figure}
+
+\subsection{Schema Audit}
+
+Bên cạnh các schema phục vụ lưu trữ dữ liệu nghiệp vụ, hệ thống còn thiết kế riêng một schema \texttt{audit} để phục vụ công tác quản trị và vận hành. 
+
+\textbf{Mục đích của Schema Audit:}
+\begin{itemize}
+    \item Ghi lại toàn bộ lịch sử thực thi của mọi task trong pipeline (bao gồm thông tin luồng chạy, thời gian thực thi và kết quả đầu ra).
+    \item Hỗ trợ đắc lực cho kỹ sư dữ liệu trong việc theo dõi (monitoring), gỡ lỗi (debugging) và đánh giá độ tin cậy cũng như hiệu năng hoạt động của hệ thống.
+\end{itemize}
+
+\textbf{Cấu trúc bảng chính: \texttt{audit.pipeline\_run\_\allowbreak log}}
+
+Đây là bảng nhật ký trung tâm, được thiết kế để lưu vết mọi hoạt động của luồng dữ liệu. Cấu trúc bảng được chia thành các nhóm cột chi tiết như sau:
+
+\begin{itemize}
+    \item \textbf{Nhóm định danh task:} Gồm các cột \texttt{dag\_id}, \texttt{task\_id}, \texttt{run\_date}, \texttt{attempt}. Nhóm này giúp định danh chính xác tác vụ đang chạy, thuộc luồng (DAG) nào và ở lần chạy (retry) thứ mấy.
+    \item \textbf{Nhóm trạng thái:} Cột \texttt{status} ghi nhận tình trạng hiện tại của task với các giá trị chuẩn như: \texttt{started}, \texttt{success}, \texttt{failed}, \texttt{skipped}.
+    \item \textbf{Nhóm thời gian:} Gồm \texttt{started\_at}, \texttt{ended\_at} và \texttt{duration\_sec}. Trong đó, \texttt{duration\_sec} là cột tính toán tự động (computed column) giúp đo lường thời gian chạy thực tế của task.
+    \item \textbf{Nhóm thống kê tác động dữ liệu:} Gồm \texttt{rows\_processed}, \texttt{rows\_inserted}, \texttt{rows\_updated}, \texttt{rows\_deleted}. Nhóm cột này cung cấp số liệu thực tế về khối lượng bản ghi được xử lý qua từng bước.
+    \item \textbf{Nhóm thông tin lỗi \& debug:} Bao gồm \texttt{error\_message}, \texttt{log\_file\_path}, \texttt{airflow\_log\_url}, \texttt{host\_name} và đặc biệt là \texttt{extra\_metadata} (lưu dưới dạng định dạng JSON tự do cho phép mở rộng linh hoạt các thông tin log đặc thù mà không cần sửa bảng).
+\end{itemize}
+
+Để tối ưu hóa việc truy xuất và trực quan hóa tình trạng "sức khỏe" của toàn bộ hệ thống pipeline, schema \texttt{audit} được thiết kế thêm các View tổng hợp dữ liệu từ bảng log chính.
+
+\textbf{Các View hỗ trợ phân tích:}
+\begin{itemize}
+    \item \texttt{audit.v\_latest\_run\_\allowbreak per\_task}: Cung cấp trạng thái thực thi mới nhất của từng task. View này đóng vai trò như một bảng điều khiển (dashboard) thời gian thực, giúp kỹ sư dữ liệu nắm bắt nhanh chóng hiện trạng của hệ thống (hiện có task nào đang treo hay vừa thất bại không).
+    \item \texttt{audit.v\_task\_success\_\allowbreak rate\_30d}: Chuyên dùng để tính toán tỷ lệ thành công (success rate) và thống kê thời gian chạy (trung bình, tối đa) của các task trong vòng 30 ngày gần nhất. Tập dữ liệu từ view này đặc biệt quan trọng trong việc phát hiện các nút thắt cổ chai (bottleneck) về hiệu năng và đánh giá độ ổn định dài hạn của các luồng xử lý.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    % Điều chỉnh width về tỷ lệ 0.9 hoặc \textwidth tùy thuộc độ phân giải ảnh gốc của bạn
+    \includegraphics[width=0.9\textwidth]{img3/audit.png} 
+    \caption{Sơ đồ cấu trúc dữ liệu của Schema Audit}
+    \label{fig:email-alert-example}
+\end{figure}
+
+\section{Thiết kế cơ chế điều phối (Orchestration)}
+% TODO: Thiết kế luồng tác vụ điều phối trên Apache Airflow:
+\subsection{Vận hành và điều phối}
+
+Để vận hành toàn bộ nền tảng dữ liệu được thiết kế trong Đồ án tốt nghiệp (ĐATN), hệ thống sử dụng Apache Airflow làm công cụ điều phối (Orchestrator) trung tâm. Toàn bộ các tiến trình từ trích xuất, biến đổi dữ liệu (ETL/ELT), cho đến kiểm định chất lượng và ghi nhận nhật ký (Audit) đều được tự động hóa và đóng gói hoàn chỉnh. Toàn bộ vòng đời của hệ thống dữ liệu trong đồ án được vận hành thông qua 3 luồng DAG (Directed Acyclic Graph) cốt lõi:
+
+\begin{itemize}
+    \item \textbf{\texttt{banking\_structured\_dag}}: Là luồng xử lý xương sống, chịu trách nhiệm chuyển hóa dữ liệu có cấu trúc từ hệ thống nguồn OLTP đi qua lần lượt các tầng Bronze, Silver và Gold theo chuẩn kiến trúc Medallion.
+    \begin{figure}[H]
+    \centering
+    % Điều chỉnh width về tỷ lệ 0.9 hoặc \textwidth tùy thuộc độ phân giải ảnh gốc của bạn
+    \includegraphics[width=0.9\textwidth]{img3/banking_structured..png} 
+    \caption{Sơ đồ workflow của \texttt{banking\_structured\_dag}}
+    \label{fig:banking-structured-dag-workflow}
+\end{figure}
+
+
+
+
+
+
+
+    \item \textbf{\texttt{data\_quality\_dag}}: Đóng vai trò là chốt chặn kiểm duyệt, tự động kích hoạt để đánh giá các chỉ tiêu chất lượng dữ liệu (Data Quality) ngay sau khi luồng dữ liệu có cấu trúc cập nhật xong, đảm bảo dữ liệu tại tầng Gold luôn đạt chuẩn trước khi đưa lên báo cáo.
+    \begin{figure}[H]
+    \centering
+    % Điều chỉnh width về tỷ lệ 0.9 hoặc \textwidth tùy thuộc độ phân giải ảnh gốc của bạn
+    \includegraphics[width=0.9\textwidth]{img3/Data_quality.png} 
+    \caption{Sơ đồ workflow của \texttt{data\_quality\_dag}}
+    \label{fig:data-quality-dag-workflow}
+\end{figure}
+    \item \textbf{\texttt{ocr\_unstructured\_dag}}: Vận hành luồng xử lý dữ liệu phi cấu trúc, tự động hóa quy trình nhận dạng quang học (PaddleOCR) để bóc tách thông tin từ các hình ảnh chứng từ vật lý (Căn cước công dân, Sổ tiết kiệm) và nạp vào cơ sở dữ liệu.
+\end{itemize}
+    \begin{figure}[H]
+    \centering
+    % Điều chỉnh width về tỷ lệ 0.9 hoặc \textwidth tùy thuộc độ phân giải ảnh gốc của bạn
+    \includegraphics[width=0.9\textwidth]{img3/ocr.png} 
+    \caption{Sơ đồ workflow của \texttt{ocr\_unstructured\_dag}}
+    \label{fig:ocr-unstructured-dag-workflow}
+\end{figure}
+
+Lịch trình thực thi, tần suất chạy cũng như mối liên hệ phụ thuộc (dependencies) giữa 3 luồng DAG này được thiết kế một cách logic nhằm tối ưu hóa tài nguyên hệ thống, được mô tả chi tiết trong Hình \ref{fig:airflow_dag_timeline}.
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[
+        >=Stealth,
+        % ==========================================
+        % Định nghĩa Style cho các đối tượng
+        % ==========================================
+        ax/.style={thick, draw=gray!80},
+        tick/.style={thick, draw=gray!80},
+        time/.style={font=\bfseries, text=black},
+        dagbox/.style={rectangle, rounded corners=3pt, draw=blue!60, fill=blue!5, thick, text width=4.5cm, align=center, inner sep=6pt, font=\small},
+        dqbox/.style={rectangle, rounded corners=3pt, draw=teal!60, fill=teal!5, thick, text width=4.5cm, align=center, inner sep=6pt, font=\small},
+        indepbox/.style={rectangle, rounded corners=3pt, draw=orange!60, fill=orange!5, thick, text width=6.5cm, align=center, inner sep=6pt, font=\small},
+        arr/.style={->, thick, draw=gray!80}
+    ]
+
+    % ==========================================
+    % PHẦN 1: TIMELINE HẰNG NGÀY (CÓ PHỤ THUỘC)
+    % ==========================================
+    \node[anchor=west, font=\bfseries] at (-0.5, 1) {TIMELINE HẰNG NGÀY};
+    
+    % Vẽ trục thời gian ngang
+    \draw[ax] (-0.5, 0) -- (11.5, 0);
+
+    % --- Mốc 02:00 ---
+    \node[time, above] at (1.5, 0.2) {02:00};
+    \draw[tick] (1.5, 0.2) -- (1.5, 0);
+    \draw[arr] (1.5, 0) -- (1.5, -0.8);
+    
+    \node[dagbox, anchor=north] (dag1) at (1.5, -0.8) {
+        \textbf{\texttt{banking\_structured\_dag}} \\
+        \footnotesize (tự động, \texttt{@daily})
+    };
+
+    % --- Mốc 04:00 ---
+    \node[time, above] at (10, 0.2) {04:00};
+    \draw[tick] (10, 0.2) -- (10, 0);
+    \draw[arr] (10, 0) -- (10, -0.8);
+    
+    \node[dqbox, anchor=north] (dag2) at (10, -0.8) {
+        \textbf{\texttt{data\_quality\_dag}} \\
+        \footnotesize (tự động, \texttt{@daily}) \\
+        \footnotesize chờ structured DAG \\
+        \footnotesize thành công trong 24h
+    };
+
+    % --- Mốc ~03:30 (Tính toán vị trí chính giữa tự động) ---
+    % Tìm điểm giữa của DAG 1 và DAG 2 để đặt mốc 3:30
+    \path (dag1.east) -- (dag2.west |- dag1.east) coordinate[midway] (mid);
+    
+    \node[time, above] at (mid |- 0, 0.2) {$\sim$03:30};
+    \draw[tick] (mid |- 0, 0.2) -- (mid |- 0, 0);
+    
+    % Mũi tên ngang nối từ DAG 1 sang DAG 2, ghi chữ "Kết thúc" ở giữa
+    \draw[arr] (dag1.east) -- node[fill=white, font=\small\itshape, inner sep=4pt] (end1) {Kết thúc} (dag2.west |- dag1.east);
+    
+    % Mũi tên từ trục thời gian ~03:30 trỏ xuống chữ "Kết thúc"
+    \draw[arr] (mid |- 0, 0) -- (end1.north);
+
+
+    % ==========================================
+    % PHẦN 2: TIMELINE THỦ CÔNG (ĐỘC LẬP)
+    % ==========================================
+    \node[anchor=west, font=\bfseries] at (-0.5, -4.5) {BẤT KỲ LÚC NÀO (Trigger thủ công)};
+    
+    % Vẽ một đoạn trục ngắn tượng trưng
+    \draw[ax] (-0.5, -5.2) -- (4, -5.2);
+    
+    \draw[arr] (1.5, -5.2) -- (1.5, -6.0);
+    
+    \node[indepbox, anchor=north] (dag3) at (1.5, -6.0) {
+        \textbf{\texttt{ocr\_unstructured\_dag}} \\
+        \footnotesize (độc lập, không phụ thuộc 2 DAG trên)
+    };
+
+    \end{tikzpicture}
+    \caption{Lịch trình điều phối các DAG trong Apache Airflow}
+    \label{fig:airflow_dag_timeline}
+\end{figure}
+\subsection{Quản lý và giới hạn tài nguyên}
+
+Trong quá trình điều phối, việc chạy đồng thời quá nhiều tác vụ (tasks) có thể dẫn đến cạn kiệt tài nguyên máy chủ (RAM, CPU) hoặc gây quá tải cho các hệ thống nguồn (như cơ sở dữ liệu OLTP đang phục vụ giao dịch cốt lõi). Để giải quyết vấn đề này, hệ thống sử dụng cơ chế \textbf{Pools} của Apache Airflow nhằm kiểm soát chặt chẽ mức độ đồng thời (Concurrency) của các nhóm tác vụ đặc thù. 
+
+Cấu hình chi tiết của 3 pool được triển khai trong hệ thống được trình bày trong Bảng \ref{tab:airflow_pools}:
+
+\begin{table}[H]
+    \centering
+    \renewcommand{\arraystretch}{1.4}
+    \begin{tabular}{|l|c|p{8.5cm}|}
+        \hline
+        
+        \textbf{Tên Pool} & \textbf{Concurrency} & \textbf{Mục đích} \\
+        \hline
+        \texttt{source\_db\_pool} & 2 & Giới hạn số lượng kết nối trích xuất đồng thời vào cơ sở dữ liệu nguồn (OLTP DB). Tránh việc tạo ra quá nhiều session truy vấn cùng lúc làm ảnh hưởng đến hiệu năng giao dịch thực tế của ngân hàng. \\
+        \hline
+        \texttt{dbt\_pool} & 4 & Giới hạn số lượng các mô hình biến đổi dữ liệu (dbt models) được phép thực thi song song trong quá trình xây dựng tầng Silver và Gold. \\
+        \hline
+        \texttt{ocr\_pool} & 1 & Tác vụ nhận dạng quang học bằng AI (PaddleOCR) yêu cầu khối lượng tính toán cực kỳ lớn (CPU-bound nặng). Việc giới hạn mức 1 đảm bảo hệ thống chỉ xử lý tuần tự từng ảnh, tránh hiện tượng tràn bộ nhớ và treo toàn bộ pipeline. \\
+        \hline
+    \end{tabular}
+    \caption{Cấu hình giới hạn tài nguyên (Pools) trong Apache Airflow}
+    \label{tab:airflow_pools}
+\end{table}
+
+\subsection{Cơ chế cảnh báo tự động (Alerting \& Notifications)}
+
+Để đảm bảo tính chủ động trong công tác vận hành và rút ngắn thời gian xử lý sự cố, hệ thống điều phối Apache Airflow được tích hợp cơ chế thông báo tự động thông qua các hàm \textit{callback}. Cơ chế này kết nối trực tiếp với các kênh giao tiếp của đội ngũ phát triển (như Slack và Email) và hoạt động dựa trên 3 kịch bản chính:
+
+\begin{itemize}
+    \item \textbf{Cảnh báo thất bại (Failure Alert):} Bất kỳ tác vụ (task) nào gặp lỗi và thất bại trong quá trình thực thi sẽ ngay lập tức kích hoạt callback để bắn cảnh báo khẩn cấp qua \textbf{Email}. Thông báo này thường đính kèm các ngữ cảnh quan trọng như tên luồng, tên tác vụ bị lỗi và đường dẫn (URL) trực tiếp tới file log để kỹ sư có thể truy cập và gỡ lỗi (debug) ngay lập tức.
+    
+    \item \textbf{Thông báo thử lại (Retry Notice):} Đối với các lỗi có thể do nguyên nhân khách quan tạm thời (như gián đoạn mạng, timeout), Airflow được cấu hình để thử lại (retry). Khi quá trình này diễn ra, hệ thống sẽ báo cho đội ngũ biết rằng một tác vụ đang tự động khắc phục lỗi, tránh việc báo động giả làm trôi tin nhắn.
+    
+    \item \textbf{Xác nhận thành công (Success Notification):} Khi điểm neo cuối cùng của DAG hoàn thành, tức là toàn bộ pipeline đã chạy trọn vẹn và dữ liệu đã an toàn cập bến tầng Gold, một thông báo \texttt{notify\_success} sẽ được gửi đi. Đây là tín hiệu xác nhận kho dữ liệu đã sẵn sàng để phục vụ cho các dashboard và báo cáo phân tích trong ngày.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+
+    \includegraphics[width=0.9\textwidth]{img3/mail.png} 
+    \caption{Hình ảnh cảnh báo được gửi về email cá nhân}
+    \label{fig:audit-schema-diagram}
+\end{figure}

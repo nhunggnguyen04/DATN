@@ -25,9 +25,9 @@ x-airflow-common: &airflow-common
     AIRFLOW__SMTP__SMTP_STARTTLS: "true"
     AIRFLOW__SMTP__SMTP_SSL: "false"
     AIRFLOW__SMTP__SMTP_PORT: "587"
-    AIRFLOW__SMTP__SMTP_USER: "nguyenhongnhungtxa@gmail.com"
-    AIRFLOW__SMTP__SMTP_PASSWORD: "pobtcuxqftikslxp"
-    AIRFLOW__SMTP__SMTP_MAIL_FROM: "nguyenhongnhungtxa@gmail.com"
+    AIRFLOW__SMTP__SMTP_USER: "${SMTP_USER}"
+    AIRFLOW__SMTP__SMTP_PASSWORD: "${SMTP_PASSWORD}"
+    AIRFLOW__SMTP__SMTP_MAIL_FROM: "${SMTP_USER}"
   env_file:
     - .env
   volumes:
@@ -94,6 +94,24 @@ services:
     depends_on:
       airflow-init:
         condition: service_completed_successfully
+
+  demo-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: datn-airflow:2.9.0
+    entrypoint: []
+    command: ["/opt/airflow/.venv_ocr/bin/python", "/opt/airflow/demo_web/app.py"]
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./demo_web:/opt/airflow/demo_web
+      - ./scripts:/opt/airflow/scripts
+    env_file:
+      - .env
+    environment:
+      TZ: Asia/Ho_Chi_Minh
+    restart: unless-stopped
 
 volumes:
   postgres-data:

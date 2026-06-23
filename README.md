@@ -1,695 +1,311 @@
-# DATN - Banking Data Pipeline
+# DATN — Banking Data Platform
 
-Dự án xây dựng pipeline dữ liệu ngân hàng, xử lý cả **dữ liệu có cấu trúc** (Bronze → Silver → Gold với Airflow + dbt) và **dữ liệu phi cấu trúc** (OCR extraction đơn giản).
+Đồ án tốt nghiệp: nền tảng dữ liệu ngân hàng xử lý cả **dữ liệu có cấu trúc** (Bronze → Silver → Gold) và **dữ liệu phi cấu trúc** (OCR tài liệu ngân hàng), kèm web demo trực quan.
 
-## Mục tiêu
-
-- **Structured Data**: ETL từ SQL Server → Data Vault (Silver) → Star Schema (Gold) với Airflow + dbt
-- **Unstructured Data**: OCR 2 loại tài liệu (CCCD, Sổ tiết kiệm) → Bronze tables trực tiếp
-- Pipeline đơn giản, dễ hiểu, phù hợp với đồ án sinh viên
+---
 
 ## Kiến trúc tổng quan
 
 ```
-SOURCE (SQL Server + Ảnh)
-         │
-         ├──────────────┬──────────────┐
-         ▼              ▼              ▼
-┌─────────────────────────────────────────────┐
-│           BRONZE LAYER                       │
-├─────────────────────────────────────────────┤
-│ Structured:                                │
-│   • users_tdy/pdy/mns                      │
-│   • cards_tdy/pdy/mns                      │
-│   • transactions_tdy/pdy/mns               │
-│   • mcc_codes                              │
-│                                            │
-│ Unstructured (Simple):                     │
-│   • id_card_results                        │
-│   • savings_book_results                   │
-└─────────────────┬──────────┬───────────────┘
-                  │          │
-                  │          ▼
-                  │   Direct Queries (Simple)
-                  │   
-                  ▼
-┌─────────────────────────────────────────────┐
-│    SILVER LAYER (Structured Only)           │
-│        Data Vault Model                     │
-├─────────────────────────────────────────────┤
-│         GOLD LAYER                          │
-│       Star Schema (Dimensional)             │
-├─────────────────────────────────────────────┤
-│        CONSUMPTION                          │
-│    Power BI / Analytics                     │
-└─────────────────────────────────────────────┘
-```
-
-**Unstructured Pipeline (Simple - Bronze Only):**
-
-```
-Images (CCCD, Savings Book)
-         │
-         ▼
-   PaddleOCR Extraction
-         │
-         ▼
-    Load to Bronze Tables
-         │
-         ▼
-   Direct SQL Queries
-         │
-    (No Airflow, No dbt,
-     No TDY/PDY/MNS)
+┌─────────────────────────────────────────────────────────────────┐
+│                      NGUỒN DỮ LIỆU                              │
+│          SQL Server (OLTP)          Ảnh tài liệu                │
+│     users · cards · transactions    (CCCD, Sổ tiết kiệm)        │
+└──────────────────┬──────────────────────────┬───────────────────┘
+                   │                          │
+                   ▼                          ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                        BRONZE LAYER                              │
+│  Có cấu trúc:                    Phi cấu trúc:                   │
+│  *_tdy · *_pdy · *_mns           id_card_results                 │
+│  (users, cards, transactions,    savings_book_results             │
+│   mcc_codes)                                                      │
+└──────────────────┬───────────────────────────────────────────────┘
+                   │
+                   ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                        SILVER LAYER                              │
+│                   Data Vault 2.0                                  │
+│         Hubs · Links · Satellites                                 │
+└──────────────────┬───────────────────────────────────────────────┘
+                   │
+                   ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                         GOLD LAYER                               │
+│                      Star Schema                                  │
+│  dim_customer · dim_card · dim_merchant · dim_mcc · dim_date     │
+│                      fact_transaction                             │
+└──────────────────┬───────────────────────────────────────────────┘
+                   │
+                   ▼
+           Power BI / Analytics
 ```
 
 ---
 
-## 1. Structured Data Pipeline (Full ETL)
+## Công nghệ sử dụng
 
-### Kiến trúc
-
-```
-SQL Server (source)
-     │
-     ▼
-Bronze (TDY/PDY/MNS) ───→ pd_date, ins_date, del_date flags
-     │
-     ▼
-Silver (Data Vault)
- ├─ hubs (business keys)
- ├─ links (relationships)
- └─ satellites (attributes + history)
-     │
-     ▼
-Gold (Star Schema)
- ├─ dim_user, dim_card, dim_date, dim_mcc
- └─ fact_transactions
-     │
-     ▼
-Power BI / Analytics
-```
-
-### Incremental Logic (TDY/PDY/MNS)
-
-```
-PDY (Previous Day)  ←  TDY (Today)  →  MNS (Move-New-Stable)
-
-Process:
-1. Clear MNS tables
-2. Copy TDY → PDY
-3. Extract source new → TDY
-4. Compare TDY vs PDY → Compute MNS (I/U/D)
-5. dbt transforms from MNS → Silver → Gold
-```
+| Thành phần | Công nghệ |
+|---|---|
+| Orchestration | Apache Airflow 2.9.0 |
+| Transformation | dbt (Data Build Tool) |
+| Database | SQL Server (OLTP nguồn + Data Warehouse đích) |
+| OCR | PaddleOCR + PaddlePaddle 3.2.2 |
+| AI (Web demo) | Google Gemini API · Groq LLaMA |
+| Web demo | Flask |
+| Containerization | Docker Compose |
+| BI | Power BI |
 
 ---
 
-## 2. Unstructured Data Pipeline (Simple - Bronze Only)
-
-### Kiến trúc
-
-```
-Input Directory Structure:
-data/unstructured/documents/
-├── doc_type=id_card/
-│   └── run_date=YYYY-MM-DD/
-│       └── user_id=1/
-│           └── image1.jpg
-└── doc_type=savings_book/
-     └── run_date=YYYY-MM-DD/
-          └── user_id=1/
-               └── image1.jpg
-
-Pipeline:
-Images → OCR Extraction → CSV/XLSX → Load Bronze Tables
-
-Tech:
-- PaddleOCR (tiếng Việt)
-- Python scripts (không dùng Airflow)
-- 2 bronze tables:
-  1. bronze.id_card_results
-  2. bronze.savings_book_results
-```
-
-### OCR Extraction Details
-
-#### CCCD Fields
-
-**Label mapping**:
-```
-FULL NAME → full_name
-ID NO → id_number (12 digits)
-DATE OF BIRTH → date_of_birth
-SEX → sex (Nam/Nữ)
-NATIONALITY → nationality
-PLACE OF ORIGIN → place_of_origin
-PLACE OF RESIDENCE → place_of_residence
-ISSUE DATE → issue_date
-EXPIRY DATE → expiry_date
-```
-
-**Post-processing**:
-- Dates: normalize to `YYYY-MM-DD` or `dd/mm/yyyy`
-- Sex: normalize to `Nam` / `Nữ`
-- ID number: extract digits only (12 digits)
-- Strip whitespace, fix OCR errors
-
-#### Savings Book Fields
-
-```
-SỐ TÀI KHOẢN → account_number
-CHỦ TÀI KHOẢN → account_holder
-LOẠI TÀI KHOẢN → account_type
-NGÀY MỞ SỔ → opening_date
-SỐ DƯ → balance (float)
-LÃI SUẤT → interest_rate (float %)
-```
-
-**Post-processing**:
-- Balance: remove currency symbols (đ, VNĐ, ₫), convert to float
-- Interest rate: remove `%`, convert to float
-
----
-
-## 3. Công nghệ
-
-| Thành phần | Structured Pipeline | Unstructured Pipeline |
-|------------|---------------------|------------------------|
-| Orchestration | Apache Airflow | Python scripts (simple) |
-| Transform | dbt (Silver→Gold) | Direct → Bronze |
-| Database | SQL Server (Bronze/Silver/Gold) | SQL Server (Bronze only) |
-| OCR | — | PaddleOCR + PaddlePaddle |
-| Extract | Python + pyodbc | Python + PaddleOCR |
-| Environment | .venv | .venv_ocr (separate) |
-
----
-
-## 4. Cấu trúc thư mục
+## Cấu trúc thư mục
 
 ```
 DATN/
-├── dags/                          # Airflow DAGs (điểm vào điều phối)
-│   ├── banking_structured_dag.py  # ETL chính: Bronze → Silver → Gold (@daily 02:00)
-│   ├── data_quality_dag.py        # DQ checks sau structured DAG (@daily 04:00)
-│   ├── ocr_unstructured_dag.py    # OCR CCCD + sổ tiết kiệm → Bronze (manual)
-│   └── common/                    # constants, operators (audit), callbacks
+├── dags/                             # Airflow DAGs
+│   ├── banking_structured_dag.py     # Pipeline chính (@daily 02:00)
+│   ├── data_quality_dag.py           # Kiểm tra chất lượng dữ liệu (@daily 04:00)
+│   ├── ocr_unstructured_dag.py       # OCR pipeline (trigger thủ công)
+│   └── common/                       # operators, constants, callbacks
 ├── scripts/
 │   ├── extract/
-│   │   # Structured → Bronze (TDY/PDY) + compute MNS
-│   │   ├── load_bronze_users.py
-│   │   ├── load_bronze_cards.py
-│   │   ├── load_bronze_transactions.py
-│   │   ├── load_bronze_mcc_codes.py
-│   │   ├── users_mns.py
-│   │   ├── cards_mns.py
-│   │   ├── transactions_mns.py
-│   │   ├── mcc_codes_mns.py
-│   │   # Unstructured OCR → extracted files + load to Bronze
-│   │   ├── ocr_extract_id_card.py
+│   │   ├── load_bronze_*.py          # Nạp dữ liệu vào *_tdy
+│   │   ├── *_mns.py                  # Tính change-set I/U/D
+│   │   ├── ocr_extract_id_card.py    # OCR CCCD
 │   │   ├── ocr_extract_savings_book.py
 │   │   └── load_bronze_unstructured.py
-│   ├── sql/
-│   │   └── create_bronze_ocr_tables.sql    # DDL cho bronze.id_card_results, bronze.savings_book_results
-│   └── utils/
-│       └── db_connection.py
+│   ├── utils/
+│   │   ├── db_connection.py          # Engine SQL Server dùng chung
+│   │   └── audit_logger.py
+│   └── setup_audit.py                # Khởi tạo schema audit (chạy 1 lần)
+├── dbt_bank/
+│   ├── models/
+│   │   ├── bronze/                   # source definitions
+│   │   ├── silver/                   # hubs · links · satellites · ref
+│   │   └── gold/                     # dimensions · facts
+│   ├── macros/                       # hash_md5, generate_schema_name
+│   ├── profiles.yml
+│   └── dbt_project.yml
+├── demo_web/                         # Web demo OCR
+│   ├── app.py                        # Flask application
+│   ├── ocr_engine.py                 # PaddleOCR engine
+│   ├── gemini_engine.py              # Google Gemini engine
+│   ├── groq_engine.py                # Groq LLaMA engine
+│   └── templates/index.html
+├── sql/
+│   ├── create_audit_tables.sql
+│   └── create_bronze_unstructured_tables.sql
 ├── data/
 │   └── unstructured/
-│       ├── documents/              # INPUT: Ảnh gốc
-│       │   ├── doc_type=id_card/
-│       │   │   └── run_date=YYYY-MM-DD/
-│       │   │       └── user_id=1/CCCD_001.jpg
-│       │   └── doc_type=savings_book/
-│       │       └── run_date=YYYY-MM-DD/
-│       │           └── user_id=1/savings_001.jpg
-│       ├── extracted/             # OUTPUT: CSV/XLSX kết quả OCR
-│           ├── id_card_extractions_YYYY-MM-DD.csv
-│           ├── id_card_extracted_run_date=YYYY-MM-DD.xlsx
-│           └── savings_book_roi_extractions_YYYY-MM-DD.csv
-│       └── manifests/             # manifest / metadata (optional)
-├── dbt_bank/                      # dbt project (hiện tại tập trung Silver/Data Vault)
-│   ├── models/
-│   │   ├── bronze/                 # source definitions
-│   │   └── silver/                 # hubs/links/satellites/ref
-│   └── dbt_project.yml
-├── sql/
-│   └── create_bronze_unstructured_tables.sql  # (Optional) DDL simplified cho unstructured Bronze
-├── .env.example                   # cấu hình kết nối SOURCE_/TARGET_
+│       ├── documents/                # Ảnh đầu vào (doc_type=*/run_date=*/user_id=*/)
+│       └── extracted/                # CSV/XLSX kết quả OCR
+├── Dockerfile
+├── docker-compose.yaml
 ├── requirements.txt
-└── README.md
+└── .env.example
 ```
 
 ---
 
-## 5. Workflow chi tiết
+## Cài đặt
 
-### 5.1. Structured Data Flow (Full Pipeline)
+### 1. Cấu hình môi trường
 
-```
-SQL Server (users, cards, transactions, mcc)
-     ↓
-Python Extract → TDY tables
-     ↓
-Compute MNS (I/U/D flags)
-     ↓
-dbt: Bronze MNS → Silver (Data Vault)
-     ↓
-dbt: Silver → Gold (Star Schema)
-     ↓
-Power BI / Analytics
-```
-
-**Orchestration**: Airflow DAG (`dags/banking_structured_dag.py`)
-
-### 5.2. Unstructured Data Flow (Simple Pipeline)
-
-```
-data/unstructured/documents/
-    ├── doc_type=id_card/run_date=YYYY-MM-DD/user_id=*/images
-    └── doc_type=savings_book/run_date=YYYY-MM-DD/user_id=*/images
-         ↓
-[Step 1] OCR Extraction (PaddleOCR)
-  - ocr_extract_id_card.py
-  - ocr_extract_savings_book.py
-         ↓
-[Step 2] Output CSV/XLSX
-  data/unstructured/extracted/
-    ├── id_card_extractions_YYYY-MM-DD.csv
-          ├── id_card_extracted_run_date=YYYY-MM-DD.xlsx
-          └── savings_book_roi_extractions_YYYY-MM-DD.csv
-         ↓
-[Step 3] Load to Bronze
-     load_bronze_unstructured.py
-    ├── bronze.id_card_results
-    └── bronze.savings_book_results
-         ↓
-Direct SQL Queries (không có Silver/Gold)
-```
-
----
-
-## 6. Hướng dẫn chạy pipeline
-
-### 6.1. Chuẩn bị môi trường
-
-**Tạo môi trường Python**:
+Sao chép file cấu hình và điền thông tin kết nối:
 
 ```powershell
-# Main environment (core + structured pipeline)
+copy .env.example .env
+```
+
+Các biến cần điền trong `.env`:
+
+```env
+SOURCE_SERVER=<địa chỉ SQL Server nguồn>
+SOURCE_DATABASE=<tên database OLTP>
+SOURCE_USERNAME=<username>
+SOURCE_PASSWORD=<password>
+
+TARGET_SERVER=localhost
+TARGET_DATABASE=DATN
+TARGET_USERNAME=sa
+TARGET_PASSWORD=<password>
+
+ODBC_DRIVER=ODBC Driver 17 for SQL Server
+```
+
+### 2. Tạo virtualenv
+
+```powershell
+# Môi trường chính (pipeline có cấu trúc + web Gemini/Groq)
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
+pip install flask requests
 
-# (Optional) OCR environment (PaddleOCR/PaddlePaddle khá nặng)
-deactivate
+# Môi trường OCR (PaddleOCR — tách riêng do xung đột dependency)
 python -m venv .venv_ocr
 .venv_ocr\Scripts\Activate.ps1
-pip install --upgrade pip
-pip install opencv-python
-# Windows CPU (khuyến nghị):
-pip install paddlepaddle==3.2.2 paddleocr
-
-
+pip install paddlepaddle==3.2.2 paddleocr flask requests
 ```
 
-**Test PaddleOCR**:
+> **Lưu ý:** Dùng `paddlepaddle==3.2.2`, không dùng 3.3.x (lỗi trên Windows CPU).
 
-```powershell
-.venv_ocr\Scripts\Activate.ps1
-python -c "from paddleocr import PaddleOCR; ocr = PaddleOCR(lang='vi'); print('PaddleOCR OK')"
-```
-
-### 6.2. Database setup
-
-1) Tạo file `.env` từ `.env.example` và điền thông tin kết nối `SOURCE_*` và `TARGET_*`.
-
-2) Đảm bảo database target (theo `TARGET_DATABASE`) đã tồn tại trong SQL Server.
-
-**Tạo các bảng Bronze cho OCR (unstructured)** (có thể bỏ qua nếu dùng loader vì script sẽ auto-create khi cần):
-
-```sql
--- Mở scripts/sql/create_bronze_ocr_tables.sql trong SSMS
--- (hoặc dùng loader: scripts/extract/load_bronze_unstructured.py)
-.venv\Scripts\Activate.ps1
-python -c "
-from scripts.utils.db_connection import get_target_engine
-with open('scripts/sql/create_bronze_ocr_tables.sql', 'r', encoding='utf-8') as f:
-    sql = f.read()
-engine = get_target_engine()
-with engine.begin() as conn:
-    conn.execute(sql)
-print('Tables created')
-"
-```
-
-### 6.3. Chạy Unstructured Pipeline (Simple)
-
-**Chạy theo từng bước** (OCR → file extracted → load Bronze):
-
-```powershell
-# Step 1: OCR CCCD (tạo file extracted)
-.venv_ocr\Scripts\Activate.ps1
-python scripts/extract/ocr_extract_id_card.py --run-date 2026-05-25
-
-# Gợi ý input folder mặc định:
-#   data/unstructured/documents/doc_type=id_card/run_date=YYYY-MM-DD/
-# Output mặc định:
-#   data/unstructured/extracted/id_card_extracted_run_date=YYYY-MM-DD.xlsx
-
-# Step 2: Savings book extraction
-# Repo hiện có sẵn file chuẩn schema loader:
-#   data/unstructured/extracted/savings_book_roi_extractions_YYYY-MM-DD.csv
-# (Nếu bạn dùng notebook để extract, cũng sẽ xuất ra đúng file này.)
-
-# Step 3: Load to DB (trong .venv)
-.venv\Scripts\Activate.ps1
-python scripts/extract/load_bronze_unstructured.py --csv data/unstructured/extracted/id_card_extracted_run_date=2026-05-25.xlsx --doc-type id_card
-python scripts/extract/load_bronze_unstructured.py --csv data/unstructured/extracted/savings_book_roi_extractions_2026-05-25.csv --doc-type savings_book
-```
-
-### 6.4. Chạy Structured Pipeline (Full ETL)
+### 3. Khởi tạo database
 
 ```powershell
 .venv\Scripts\Activate.ps1
 
-# 1. Extract structured data (load vào bronze.*_tdy; mỗi script sẽ move TDY → PDY trước khi load)
+# Kiểm tra kết nối
+python scripts/utils/db_connection.py
+
+# Tạo schema và bảng audit (chạy 1 lần)
+python scripts/setup_audit.py
+```
+
+---
+
+## Chạy pipeline
+
+### Pipeline có cấu trúc (thủ công)
+
+```powershell
+.venv\Scripts\Activate.ps1
+
+# 1. Nạp dữ liệu nguồn vào Bronze *_tdy
 python scripts/extract/load_bronze_users.py
 python scripts/extract/load_bronze_cards.py
 python scripts/extract/load_bronze_transactions.py
 python scripts/extract/load_bronze_mcc_codes.py
 
-# 2. Compute MNS (tạo change-set I/U/D)
+# 2. Tính change-set MNS
 python scripts/extract/users_mns.py
 python scripts/extract/cards_mns.py
 python scripts/extract/transactions_mns.py
 python scripts/extract/mcc_codes_mns.py
 
-# 3. dbt transform (hiện tại tập trung Silver/Data Vault)
+# 3. Transform bằng dbt
 cd dbt_bank
 dbt run --select tag:hub
 dbt run --select tag:link
 dbt run --select tag:satellite
+dbt run --select tag:dim
+dbt run --select fact_transaction --vars '{"run_date":"2026-05-25"}'
+dbt test --select tag:silver
+dbt test --select tag:gold
 cd ..
 ```
 
-Ghi chú: các bước thủ công ở trên đã được orchestrate sẵn trong `dags/banking_structured_dag.py` (precheck → extract → MNS → validate → dbt silver → dbt gold → notify). Chạy bằng Airflow qua `docker compose up -d`.
+### Pipeline OCR (thủ công)
 
----
+```powershell
+# Bước 1 — OCR (dùng .venv_ocr)
+.venv_ocr\Scripts\Activate.ps1
+python scripts/extract/ocr_extract_id_card.py --run-date 2026-05-25
+python scripts/extract/ocr_extract_savings_book.py --run-date 2026-05-25
 
-## 7. Query dữ liệu
-
-### Unstructured (Bronze Tables)
-
-**CCCD results**:
-
-```sql
-SELECT TOP 10 
-    document_id,
-    full_name,
-    id_number,
-    date_of_birth,
-    sex,
-    extraction_confidence,
-    status
-FROM bronze.id_card_results
-WHERE run_date = '2026-05-22'
-ORDER BY extraction_confidence DESC;
-
--- Summary
-SELECT 
-    COUNT(*) as total,
-    COUNT(CASE WHEN status = 'ok' THEN 1 END) as success,
-    COUNT(CASE WHEN status = 'error' THEN 1 END) as errors,
-    AVG(extraction_confidence) as avg_confidence
-FROM bronze.id_card_results
-WHERE run_date = '2026-05-22';
-```
-
-**Sổ tiết kiệm results**:
-
-```sql
-SELECT TOP 10 
-    document_id,
-    account_holder,
-    account_number,
-    balance,
-    interest_rate,
-    status
-FROM bronze.savings_book_results
-WHERE run_date = '2026-05-22';
-```
-
-**Structured (Gold Layer)**:
-
-```sql
--- User dimension
-SELECT * FROM gold.dim_user LIMIT 10;
-
--- Transaction facts
-SELECT 
-    t.transaction_id,
-    u.full_name,
-    c.card_number,
-    t.amount,
-    t.transaction_date
-FROM gold.fact_transactions t
-JOIN gold.dim_user u ON t.user_id = u.user_id
-JOIN gold.dim_card c ON t.card_id = c.card_id
-WHERE t.transaction_date >= '2026-05-01';
+# Bước 2 — Nạp vào Bronze (dùng .venv)
+.venv\Scripts\Activate.ps1
+python scripts/extract/load_bronze_unstructured.py \
+    --csv data/unstructured/extracted/id_card_extractions_2026-05-25.csv \
+    --doc-type id_card
+python scripts/extract/load_bronze_unstructured.py \
+    --csv data/unstructured/extracted/savings_book_roi_extractions_2026-05-25.csv \
+    --doc-type savings_book
 ```
 
 ---
 
-## 8. Database Schema
+## Airflow (Docker)
 
-> DDL đầy đủ: [scripts/sql/create_bronze_ocr_tables.sql](scripts/sql/create_bronze_ocr_tables.sql)
->
-> Script load: [scripts/extract/load_bronze_unstructured.py](scripts/extract/load_bronze_unstructured.py)
+Airflow orchestrate toàn bộ pipeline có cấu trúc tự động theo lịch.
 
----
+```powershell
+# Build image và khởi động (lần đầu)
+docker compose build
+docker compose up -d
 
-### `bronze.id_card_results`
+# Xem log scheduler
+docker compose logs -f airflow-scheduler
 
-Lưu kết quả trích xuất thông tin từ ảnh CCCD (Căn cước công dân). Mỗi dòng tương ứng một ảnh của một user.
+# Dừng
+docker compose down
+```
 
-#### Nhóm 1 — Source tracking (theo dõi nguồn)
+Truy cập Airflow UI: **http://localhost:8080** — tài khoản `admin / admin`
 
-| Cột | Kiểu | Mô tả | Ví dụ |
-|-----|------|-------|-------|
-| `id` | `BIGINT IDENTITY` | Surrogate key, PK tự tăng | `1` |
-| `file` | `NVARCHAR(200)` | Tên file ảnh | `"id_card_scan.jpg"` |
-| `file_path` | `NVARCHAR(500)` | Đường dẫn tuyệt đối đến ảnh gốc | `"E:\...\user_id=1\id_card_scan.jpg"` |
-| `run_date` | `DATE` | Ngày chạy pipeline — dùng làm partition key | `2026-05-25` |
-| `user_id` | `INT` | Trích từ tên thư mục `user_id=<n>` | `1` |
-
-#### Nhóm 2 — Thông tin trích xuất từ CCCD
-
-Các trường này được trích ra từ ảnh bằng OCR + template ROI matching. Lưu dạng `NVARCHAR` để giữ nguyên định dạng gốc (bronze không ép kiểu).
-
-| Cột | Kiểu | Mô tả | Ví dụ |
-|-----|------|-------|-------|
-| `full_name` | `NVARCHAR(300)` | Họ và tên | `"Nguyen Van An"` |
-| `id_number` | `NVARCHAR(50)` | Số CCCD (thường 12 chữ số, dữ liệu test có prefix `DEMO-`) | `"DEMO-33265923"` |
-| `date_of_birth` | `NVARCHAR(20)` | Ngày sinh, định dạng `DD/MM/YYYY` | `"10/12/1993"` |
-| `sex` | `NVARCHAR(20)` | Giới tính | `"Male"` / `"Female"` |
-| `nationality` | `NVARCHAR(100)` | Quốc tịch | `"Vietnam"` |
-| `place_of_origin` | `NVARCHAR(300)` | Quê quán | `"South John"` |
-| `place_of_residence` | `NVARCHAR(500)` | Nơi thường trú | `"0 Scott Wall, CO 59418"` |
-| `issue_date` | `NVARCHAR(20)` | Ngày cấp, định dạng `DD/MM/YYYY` | `"18/06/2021"` |
-| `expiry_date` | `NVARCHAR(20)` | Ngày hết hạn, định dạng `DD/MM/YYYY` | `"18/11/2028"` |
-
-> Ngày tháng giữ dạng string `DD/MM/YYYY` ở bronze — silver layer sẽ parse sang `DATE` khi cần.
-
-#### Nhóm 3 — Confidence scores (điểm tin cậy)
-
-Đánh giá chất lượng kết quả OCR ở 3 cấp độ khác nhau, tất cả trong khoảng `[0.0 – 1.0]`.
-
-| Cột | Kiểu | Ý nghĩa |
-|-----|------|---------|
-| `ocr_confidence` | `FLOAT` | Độ tin cậy của engine OCR (PaddleOCR recognition score) |
-| `parse_confidence` | `FLOAT` | Độ tin cậy của bước parse/validate từng trường |
-| `final_confidence` | `FLOAT` | Điểm tổng hợp cuối = kết hợp `ocr_confidence` và `parse_confidence` |
-| `plausible_fields` | `INT` | Số trường có giá trị hợp lệ trong tổng 9 trường (0–9) |
-
-#### Nhóm 4 — Audit
-
-| Cột | Kiểu | Mô tả |
-|-----|------|-------|
-| `_loaded_at` | `DATETIME2 DEFAULT SYSUTCDATETIME()` | Thời điểm load vào DB (UTC) |
-
-**Indexes:** `IX_id_card_results_run_date (run_date)`, `IX_id_card_results_user_id (user_id)`
+| DAG | Lịch | Mô tả |
+|---|---|---|
+| `banking_structured_dag` | Hàng ngày 02:00 | ETL chính: Bronze → Silver → Gold |
+| `data_quality_dag` | Hàng ngày 04:00 | Kiểm tra chất lượng dữ liệu |
+| `ocr_unstructured_dag` | Thủ công | OCR CCCD và sổ tiết kiệm |
 
 ---
 
-### `bronze.savings_book_results`
+## Web Demo OCR
 
-Lưu kết quả trích xuất thông tin từ ảnh sổ tiết kiệm. Mỗi dòng là một giao dịch/trang sổ của một user.
+Web demo cho phép trích xuất thông tin từ ảnh **CCCD** hoặc **Sổ tiết kiệm** với 3 engine AI, kèm chatbot hỏi đáp về dữ liệu đã trích xuất.
 
-#### Nhóm 1 — Source tracking (theo dõi nguồn)
+| Engine | Yêu cầu |
+|---|---|
+| PaddleOCR | Không cần API key |
+| Google Gemini | Gemini API key |
+| Groq LLaMA | Groq API key |
 
-| Cột | Kiểu | Mô tả | Ví dụ |
-|-----|------|-------|-------|
-| `id` | `BIGINT IDENTITY` | Surrogate key, PK tự tăng | `1` |
-| `file` | `NVARCHAR(200)` | Tên file ảnh | `"savings_book_scan.jpg"` |
-| `file_path` | `NVARCHAR(500)` | Đường dẫn tuyệt đối đến ảnh gốc | `"E:\...\user_id=1\savings_book_scan.jpg"` |
-| `run_date` | `DATE` | Ngày chạy pipeline — dùng làm partition key | `2026-05-25` |
-| `user_id` | `INT` | Trích từ tên thư mục `user_id=<n>` | `1` |
+### Cách 1 — Chạy trên host (Gemini & Groq engine)
 
-#### Nhóm 2 — Thông tin trích xuất từ sổ tiết kiệm
+```powershell
+.venv\Scripts\Activate.ps1
+python demo_web/app.py
+```
 
-| Cột | Kiểu | Mô tả | Ví dụ |
-|-----|------|-------|-------|
-| `transaction_date` | `NVARCHAR(20)` | Ngày giao dịch, định dạng `DD/MM/YYYY` | `"20/09/2024"` |
-| `description` | `NVARCHAR(300)` | Mô tả loại giao dịch | `"Account opening"` |
-| `transaction_code` | `NVARCHAR(20)` | Mã giao dịch viết tắt | `"OPN"` |
-| `transaction_amount` | `NVARCHAR(50)` | Số tiền giao dịch, giữ string vì có dấu phẩy | `"117,136"` |
-| `balance` | `NVARCHAR(50)` | Số dư sau giao dịch, giữ string ở bronze | `"117,136"` |
-| `interest_rate` | `NVARCHAR(20)` | Lãi suất áp dụng, giữ string ở bronze | `"6.5%"` |
-| `signature` | `NVARCHAR(200)` | Tên người ký trên sổ | `"Christopher Johnson"` |
+### Cách 2 — Chạy qua Docker (đầy đủ 3 engine, bao gồm PaddleOCR)
 
-> `transaction_amount`, `balance`, `interest_rate` lưu `NVARCHAR` vì OCR trả về chuỗi có dấu phẩy/ký hiệu (`"117,136"`, `"6.5%"`). Silver layer sẽ parse sang số khi cần.
+```powershell
+docker compose up -d demo-web
+```
 
-#### Nhóm 3 — Confidence scores (điểm tin cậy)
+Truy cập: **http://localhost:5000**
 
-| Cột | Kiểu | Ý nghĩa |
-|-----|------|---------|
-| `ocr_confidence` | `FLOAT` | Độ tin cậy của engine OCR |
-| `parse_confidence` | `FLOAT` | Độ tin cậy của bước parse/validate |
-| `final_confidence` | `FLOAT` | Điểm tổng hợp cuối |
-| `plausible_fields` | `INT` | Số trường có giá trị hợp lệ (0–7) |
-
-#### Nhóm 4 — Audit
-
-| Cột | Kiểu | Mô tả |
-|-----|------|-------|
-| `_loaded_at` | `DATETIME2 DEFAULT SYSUTCDATETIME()` | Thời điểm load vào DB (UTC) |
-
-**Indexes:** `IX_savings_book_results_run_date (run_date)`, `IX_savings_book_results_user_id (user_id)`
+> Hai cách dùng chung cổng 5000, không chạy song song.
 
 ---
 
-## 9. Troubleshooting
+## Mẫu incremental MNS
 
-### PaddleOCR errors on Windows CPU
+Mỗi entity có cấu trúc 3 bảng Bronze:
 
+| Bảng | Ý nghĩa |
+|---|---|
+| `*_tdy` | Snapshot hôm nay (truncate & load mỗi ngày) |
+| `*_pdy` | Snapshot lũy kế (giữ nguyên, dùng để so sánh) |
+| `*_mns` | Change-set: `id` + `operation_flag` (I/U) |
+
+Script MNS so sánh `*_tdy` với `*_pdy`, sinh cờ `I` (Insert) hoặc `U` (Update), rồi upsert `*_tdy` → `*_pdy`. Không sinh cờ `D` ở chế độ chạy theo ngày.
+
+---
+
+## Troubleshooting
+
+**Lỗi PaddleOCR trên Windows CPU:**
 ```
 RuntimeError: PaddlePaddle encountered an error related to PIR/oneDNN
 ```
+→ Dùng đúng `paddlepaddle==3.2.2`, không dùng 3.3.x.
 
-**Fix**:
-- Sử dụng `paddlepaddle==3.2.2` (không dùng 3.3.x)
-- Code đã có workaround disable flags trong `ocr_extract_*.py`
-- Kiểm tra `.venv_ocr` đã active
-
-### Database connection fails
-
+**Lỗi kết nối database:**
 - Kiểm tra SQL Server đang chạy
-- Kiểm tra connection string trong `scripts/utils/db_connection.py`
-- Đảm bảo database `DATN` (theo `TARGET_DATABASE` trong `.env`) tồn tại
-- Chạy SQL script để tạo tables trước
+- Đảm bảo database `DATN` đã tồn tại
+- Chạy `python scripts/utils/db_connection.py` để test nhanh
 
-### No images found
+**DAG không xuất hiện trong Airflow UI:**
+- Đợi scheduler scan (mặc định 30s)
+- Kiểm tra log: `docker compose logs airflow-scheduler`
 
-- Kiểm tra folder structure: `doc_type=*/run_date=*/user_id=*/`
-- Sử dụng `--limit 1` để test
-- Kiểm tra file extensions (.jpg, .png, .jpeg, .tiff, .bmp)
-
-### Out of memory
-
-- Giảm batch size trong OCR (không có batch processing hiện tại)
-- Xử lý ít ảnh mỗi lần
-- Đóng ứng dụng khác
+**Web demo lỗi "Không tìm thấy script":**
+- Đảm bảo `scripts/` đã được mount vào container (xem `docker-compose.yaml`)
 
 ---
 
-## 10. Performance Notes
+## Tác giả
 
-### OCR Speed
-
-- **CPU**: ~2-4s/image (single core)
-- **GPU** (nếu có CUDA): ~0.5-1s/image
-- 1000 ảnh → ~30-60 phút trên CPU
-
-### Recommendations
-
-- Test với `--limit 10` trước khi chạy full
-- Chạy vào ngoài giờ hành chính nếu dataset lớn
-- Consider parallel processing (multiprocessing) nếu cần tối ưu
-
----
-
-## 11. Development Notes
-
-### Design Decisions
-
-1. **Why Bronze-only for unstructured?**
-   - Task scope: Chỉ cần OCR extraction, không cần Silver/Gold cho unstructured
-   - Simplicity: Dễ hiểu, dễ debug, phù hợp với sinh viên mới
-   - Direct query: Query trực tiếp từ Bronze đủ cho use case
-
-2. **Why separate .venv_ocr?**
-   - PaddleOCR dependencies conflict với Airflow/dbt stack
-   - Isolation: Có thể cập nhật OCR stack độc lập
-   - Performance: Tránh bloat core environment
-
-3. **Why no manifest for new pipeline?**
-   - Manifest dùng cho incremental logic (TDY/PDY/MNS)
-   - Simple pipeline: Mỗi run là independent, không cần track changes
-   - Giảm complexity: Scan folder trực tiếp
-
-### Future Improvements
-
-- [ ] Parallel OCR processing (multiprocessing.Pool)
-- [ ] Add data validation/quality checks
-- [ ] Retry logic for failed OCR
-- [ ] Preprocessing (image enhancement, deskewing)
-- [ ] Multi-template matching (different CCCD layouts)
-- [ ] Dashboard for extraction results review
-
----
-
-## 12. Testing
-
-### Unit Test (OCR extraction)
-
-```powershell
-.venv_ocr\Scripts\Activate.ps1
-python scripts/extract/ocr_extract_id_card.py `
-    --input-dir "tests/fixtures/id_card_sample/" `
-     --run-date 2026-05-22
-
-# Khi chạy sẽ hỏi số lượng ảnh cần process (Enter = all).
-```
-
-### Integration Test (Full pipeline)
-
-```powershell
-# Tạo thư mục test
-mkdir test_data/unstructured/documents/doc_type=id_card/run_date=2026-05-22/user_id=999
-# Copy ảnh mẫu vào
-# OCR (tạo file extracted)
-.venv_ocr\Scripts\Activate.ps1
-python scripts/extract/ocr_extract_id_card.py --run-date 2026-05-22 --input-dir "test_data/unstructured/documents/doc_type=id_card/run_date=2026-05-22"
-
-# Load vào Bronze
-.venv\Scripts\Activate.ps1
-python scripts/extract/load_bronze_unstructured.py --csv data/unstructured/extracted/id_card_extracted_run_date=2026-05-22.xlsx --doc-type id_card
-
-# Kiểm tra database
-sqlcmd -Q "SELECT * FROM bronze.id_card_results WHERE user_id = 999"
-```
-
----
-
-## 13. License & Contributing
-
-[Your License Here]
-
-Pull requests welcome. Please open issues first to discuss changes.
-
----
-
-## 14. ContactS
-
-Nguyễn Hồng Nhung
-emai: nguyenhongnhungtxa@gmail.com
+Nguyễn Hồng Nhung — nguyenhongnhungtxa@gmail.com

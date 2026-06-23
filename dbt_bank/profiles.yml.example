@@ -1,0 +1,15 @@
+dbt_bank:
+  target: dev
+  outputs:
+    dev:
+      type: sqlserver
+      driver: "ODBC Driver 17 for SQL Server"
+      server: "{{ env_var('TARGET_SERVER', 'host.docker.internal') }}"
+      port: 1433
+      database: "{{ env_var('TARGET_DATABASE', 'DATN') }}"
+      schema: dbo
+      user: "{{ env_var('TARGET_USERNAME', 'sa') }}"
+      password: "{{ env_var('TARGET_PASSWORD') }}"
+      trusted_connection: false
+      encrypt: false
+      trust_cert: true

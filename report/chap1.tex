@@ -1,0 +1,282 @@
+\chapter{Mở đầu và cơ sở lý thuyết}
+\label{ch:intro}
+
+\section{Đặt vấn đề và lý do chọn đề tài}
+
+\textbf{Bối cảnh dữ liệu trong lĩnh vực ngân hàng:} 
+Trong kỷ nguyên số hóa, ngân hàng là một trong những ngành công nghiệp sản sinh ra khối lượng dữ liệu khổng lồ và đa dạng bậc nhất. Nguồn dữ liệu này không chỉ dừng lại ở các thông tin có cấu trúc rõ ràng như lịch sử giao dịch, thông tin hồ sơ khách hàng hay thẻ tín dụng, mà còn bao gồm một lượng lớn dữ liệu phi cấu trúc đến từ các chứng từ vật lý như Căn cước công dân (CCCD), sổ tiết kiệm hay hợp đồng. Điểm đặc trưng là khối dữ liệu khổng lồ này thường nằm phân tán ở nhiều hệ thống tác nghiệp độc lập, tồn tại dưới nhiều định dạng khác nhau, gây khó khăn cho việc quản lý tập trung.
+
+\textbf{Các vấn đề hạn chế hiện tại:} 
+Sự phân mảnh dữ liệu nêu trên đã và đang tạo ra nhiều rào cản lớn đối với các tổ chức tài chính. Việc thiếu vắng một nền tảng dữ liệu hợp nhất khiến quá trình khai thác, tổng hợp và phân tích thông tin toàn diện trở nên rời rạc. Bên cạnh đó, nhiều quy trình xử lý thông tin, đặc biệt là bóc tách dữ liệu từ chứng từ giấy, vẫn đang phải thực hiện hoàn toàn thủ công. Điều này không chỉ gây lãng phí thời gian mà còn tiềm ẩn rủi ro sai sót do yếu tố con người. Hơn thế nữa, hệ thống dữ liệu hiện hành thường thiếu khả năng lưu trữ lịch sử thay đổi của thực thể (Slowly Changing Dimensions) khiến việc truy vết trở nên bất khả thi. Sự thiếu hụt các cơ chế kiểm soát chất lượng dữ liệu (Data Quality) tự động cũng làm suy giảm độ tin cậy của thông tin đầu ra, ảnh hưởng trực tiếp đến các quyết định kinh doanh chiến lược.
+
+\textbf{Nhu cầu thực tiễn:} 
+Từ những bất cập thực tế đó, một nhu cầu cấp thiết được đặt ra là phải xây dựng một nền tảng dữ liệu (Data Platform) tập trung, hoạt động tự động và có kiến trúc dễ dàng mở rộng. Nền tảng này phải đảm nhiệm vai trò nền móng vững chắc để phục vụ cho các bài toán phân tích kinh doanh thông minh (BI/Dashboard) và hỗ trợ công tác quản trị dữ liệu (Data Governance) của ngân hàng.
+
+\textbf{Lý do chọn đề tài:} 
+Xuất phát từ bối cảnh và những nhu cầu cấp thiết nêu trên, em đã quyết định lựa chọn đề tài nghiên cứu này. Các lý do chính bao gồm:
+\begin{itemize}
+    \item \textbf{Tính thực tiễn cao:} Đề tài bám sát và giải quyết một bài toán tích hợp dữ liệu đang thực sự tồn tại và gây đau đầu trong ngành tài chính - ngân hàng.
+    \item \textbf{Cơ hội ứng dụng công nghệ hiện đại:} Đây là cơ hội tốt để nghiên cứu và đưa vào thực tiễn các công cụ, kiến trúc dữ liệu tiên tiến nhất hiện nay như Apache Airflow (điều phối), dbt (biến đổi dữ liệu), OCR (nhận dạng quang học) và kiến trúc đa tầng Medallion.
+    \item \textbf{Khả năng kiểm chứng kết quả rõ ràng:} Sản phẩm của đồ án mang tính định lượng và trực quan cao, có thể dễ dàng kiểm chứng thông qua việc hệ thống Data Pipeline vận hành trơn tru và các chỉ số được trực quan hóa thành công trên Dashboard.
+\end{itemize}
+
+\section{Mục tiêu và phạm vi đồ án}
+
+\subsection{Mục tiêu nghiên cứu}
+Mục tiêu cốt lõi của đồ án là thiết kế và triển khai thành công một nền tảng dữ liệu (Data Platform) toàn diện từ đầu đến cuối (end-to-end) phục vụ chuyên sâu cho một nghiệp vụ ngân hàng. Để hiện thực hóa mục tiêu tổng thể này, hệ thống được thiết kế với hai luồng xử lý (pipeline) độc lập, bao gồm:
+\begin{itemize}
+    \item \textbf{Luồng dữ liệu có cấu trúc (Structured Pipeline):} Tự động hóa toàn bộ quy trình trích xuất, biến đổi và nạp dữ liệu. Luồng này vận hành từ hệ thống nguồn tác nghiệp (OLTP), đi qua vùng chờ Bronze, chuẩn hóa tại tầng Silver bằng mô hình Data Vault 2.0 và tổng hợp tại tầng Gold bằng mô hình Star Schema để sẵn sàng phục vụ phân tích.
+    \item \textbf{Luồng dữ liệu phi cấu trúc (Unstructured Pipeline):} Ứng dụng công nghệ nhận dạng ký tự quang học (OCR) để tự động đọc và trích xuất thông tin từ các hình ảnh chứng từ vật lý (như Căn cước công dân, Sổ tiết kiệm), sau đó lưu trữ kết quả có cấu trúc vào tầng Bronze.
+\end{itemize}
+Bên cạnh đó, đồ án hướng tới việc ứng dụng kiến trúc đa tầng Medallion kết hợp cùng các mô hình dữ liệu tiên tiến nhằm đảm bảo tính toàn vẹn của lịch sử biến động dữ liệu và tính sẵn sàng mở rộng. Nền tảng cũng đặt mục tiêu tự động hóa hoàn toàn công tác điều phối, kiểm soát chặt chẽ chất lượng dữ liệu (Data Quality) và cuối cùng là trực quan hóa các kết quả phân tích thành các Dashboard sinh động trên công cụ Power BI.
+
+\subsection{Phạm vi và giới hạn của đồ án}
+Mặc dù hướng tới một kiến trúc nền tảng dữ liệu hiện đại, song do giới hạn về mặt thời gian và tài nguyên thực hiện của một đồ án tốt nghiệp, đề tài được giới hạn trong các phạm vi cụ thể như sau:
+\begin{itemize}
+    \item \textbf{Về nguồn dữ liệu:} Hệ thống sử dụng các tập dữ liệu giả lập và dữ liệu đã được ẩn danh hóa (anonymized) mô phỏng theo nghiệp vụ ngân hàng thực tế. Hệ thống không kết nối và không sử dụng dữ liệu thật từ môi trường vận hành (production) nhằm tuân thủ các nguyên tắc bảo mật thông tin.
+    \item \textbf{Về phương thức xử lý:} Các luồng xử lý (pipeline) được thiết kế theo cơ chế xử lý theo lô (Batch Processing), hoạt động tự động theo lịch trình định sẵn. Hệ thống hiện tại chưa hỗ trợ phương thức xử lý dữ liệu theo thời gian thực (Real-time/Streaming processing).
+    \item \textbf{Về luồng dữ liệu phi cấu trúc (OCR):} Giới hạn của luồng nhận dạng hình ảnh chỉ dừng ở bước trích xuất thành công các trường thông tin cá nhân và lưu trữ kết quả tại tầng Bronze. Các dữ liệu này không được tích hợp tiếp vào luồng phân tích (Silver/Gold), bởi lẽ các thông tin định danh tương tự đã tồn tại sẵn ở nguồn cơ sở dữ liệu có cấu trúc. Việc tích hợp ép buộc sẽ sinh ra hiện tượng dư thừa, trùng lặp và làm ảnh hưởng đến tính nhất quán của các insight phân tích đầu ra.
+    \item \textbf{Về hạ tầng triển khai:} Toàn bộ nền tảng dữ liệu, từ cơ sở dữ liệu đến các công cụ điều phối, được đóng gói và vận hành cục bộ (On-premise/Local) thông qua Docker. Đồ án chưa triển khai mở rộng lên các nền tảng điện toán đám mây (Cloud Computing).
+\end{itemize}
+
+\section{Cơ sở lý thuyết}
+\label{sec:background}
+% Chỉ trình bày kiến thức nền tảng (mức khái niệm) dùng trong đồ án. Lý thuyết
+% gắn với công cụ cụ thể (Airflow, dbt, PaddleOCR, Docker, Power BI, Data
+% Quality) được trình bày ở Chương 4, mục "Công nghệ sử dụng".
+
+\subsection{Tổng quan về Data Engineer và kho dữ liệu}
+
+\subsubsection{Tổng quan}
+
+Data Engineer là kỹ sư phần mềm chuyên về dữ liệu, chịu trách nhiệm xây dựng và duy trì hạ tầng để dữ liệu có thể được thu thập, lưu trữ, xử lý và truy cập một cách đáng tin cậy. Nhiệm vụ cốt lõi của vị trí này bao gồm thiết kế và xây dựng các luồng dữ liệu (pipeline) tự động, thiết kế mô hình kho dữ liệu phù hợp với nhu cầu phân tích, đảm bảo chất lượng, tính nhất quán, khả năng truy vết dữ liệu, cũng như vận hành, giám sát và xử lý sự cố hệ thống liên tục.
+
+Để thực hiện tốt các nhiệm vụ trên, việc nắm bắt vòng đời dữ liệu (Data Lifecycle) là vô cùng quan trọng. Vòng đời này diễn ra theo một trình tự tuyến tính bao gồm năm giai đoạn chính. Giai đoạn đầu tiên là thu thập, nơi dữ liệu được kéo về từ nhiều nguồn khác nhau như cơ sở dữ liệu, API, file hay thiết bị IoT. Tiếp đó, dữ liệu được đưa vào lưu trữ thô nhằm giữ nguyên dạng gốc trước khi bị can thiệp. Ở giai đoạn thứ ba, dữ liệu trải qua quá trình xử lý và làm sạch, bao gồm các bước chuẩn hóa, kiểm tra chất lượng và mô hình hóa. Sau khi đã hoàn thiện, dữ liệu bước vào giai đoạn phục vụ để cung cấp cho người dùng cuối thông qua các hệ thống BI, Machine Learning hoặc API. Cuối cùng, dữ liệu sẽ được đưa vào lưu trữ lâu dài hoặc xóa bỏ dựa trên các chính sách bảo mật và tuân thủ quy định (compliance).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{img1/Vòng đời data.jpg}
+    \caption{Vòng đời dữ liệu}
+    \label{fig:data-lifecycle}
+\end{figure}
+
+
+Trong quá trình vận hành luồng dữ liệu, có hai phương pháp xử lý phổ biến nhất là xử lý theo lô (Batch processing) và xử lý luồng (Streaming processing)
+
+\begin{table}[H]
+    \centering
+    \renewcommand{\arraystretch}{1.3}
+    \begin{tabular}{|p{3.5cm}|p{5cm}|p{5.5cm}|}
+        \hline
+        \textbf{Tiêu chí} & \textbf{Batch} & \textbf{Streaming} \\ \hline
+        \textbf{Độ trễ} & Phút $\rightarrow$ Giờ & Mili giây $\rightarrow$ Giây \\ \hline
+        \textbf{Chi phí} & Thấp & Cao hơn \\ \hline
+        \textbf{Độ phức tạp} & Thấp & Cao \\ \hline
+        \textbf{Use case} & Báo cáo, phân tích lịch sử & Cảnh báo, fraud detection \\ \hline
+        \textbf{Công cụ điển hình} & Airflow, Spark & Kafka, Flink, Spark Streaming \\ \hline
+    \end{tabular}
+    \caption{So sánh phương pháp xử lý Batch và Streaming}
+\end{table}
+
+Liên quan đến quy trình tích hợp và luân chuyển dữ liệu vào kho, hai phương pháp tiếp cận chính thường được cân nhắc là ETL (Extract - Transform - Load) và ELT (Extract - Load - Transform). Với quy trình ETL truyền thống, dữ liệu được trích xuất và biến đổi hoàn toàn ở bên ngoài (thông qua các công cụ riêng biệt như Informatica hay SSIS) trước khi nạp vào kho. Phương pháp này rất lý tưởng khi hệ thống kho đích có tài nguyên hạn chế hoặc khi doanh nghiệp cần kiểm soát chặt chẽ tính bảo mật của dữ liệu đầu vào. Tuy nhiên, hạn chế của ETL là không lưu lại dữ liệu thô gốc, dẫn đến khó khăn trong việc tái xử lý nếu logic nghiệp vụ thay đổi. Để khắc phục điều này, quy trình ELT đảo ngược thứ tự bằng cách nạp trực tiếp dữ liệu thô vào kho (thường là các nền tảng dữ liệu đám mây hiện đại), sau đó tận dụng sức mạnh tính toán của chính hệ thống này để thực hiện biến đổi thông qua các câu lệnh SQL hoặc công cụ như dbt. Nhờ giữ lại toàn bộ dữ liệu gốc, ELT mang lại sự linh hoạt tối đa khi cần tái xử lý và phục hồi dữ liệu.
+
+\begin{table}[H]
+    \centering
+    \renewcommand{\arraystretch}{1.3}
+    \begin{tabular}{|p{3cm}|p{5cm}|p{6cm}|}
+        \hline
+        \textbf{Tiêu chí} & \textbf{ETL} & \textbf{ELT} \\ \hline
+        \textbf{Thứ tự bước} & Extract $\rightarrow$ Transform $\rightarrow$ Load & Extract $\rightarrow$ Load $\rightarrow$ Transform \\ \hline
+        \textbf{Vị trí biến đổi} & Ngoài kho (công cụ riêng) & Trong kho (SQL/dbt) \\ \hline
+        \textbf{Dữ liệu thô} & Không lưu & Lưu lại \\ \hline
+        \textbf{Phù hợp} & Kho truyền thống, tài nguyên hạn chế & Kho hiện đại, cloud \\ \hline
+        \textbf{Công cụ điển hình} & Informatica, SSIS & dbt, Spark SQL \\ \hline
+    \end{tabular}
+    \caption{So sánh quy trình tích hợp dữ liệu ETL và ELT}
+\end{table}
+
+
+\subsubsection{Kho dữ liệu và hệ sinh thái}
+
+Trước khi đi sâu vào sự tiến hóa của các kiến trúc nền tảng dữ liệu, cần phân biệt rõ hai hệ thống xử lý cốt lõi, vốn là tiền đề cho sự ra đời của các Kho dữ liệu: OLTP và OLAP.
+
+\begin{itemize}
+    \item \textbf{OLTP (Online Transaction Processing - Xử lý giao dịch trực tuyến):} Là hệ thống phục vụ các tác vụ vận hành và giao dịch hằng ngày của doanh nghiệp. Điểm đặc trưng của OLTP là được tối ưu hóa để ghi và đọc nhanh từng bản ghi đơn lẻ với tần suất liên tục (ví dụ: tạo một giao dịch chuyển tiền, cập nhật số dư). Dữ liệu trong hệ thống này được chuẩn hóa ở mức độ cao (thường là chuẩn 3NF) nhằm tránh dư thừa và đảm bảo tính toàn vẹn của các giao dịch.
+    \item \textbf{OLAP (Online Analytical Processing - Xử lý phân tích trực tuyến):} Là hệ thống chuyên phục vụ công tác phân tích dữ liệu và hỗ trợ ra quyết định. Khác với OLTP, OLAP được tối ưu hóa để thực hiện các câu lệnh truy vấn đọc, quét và tính toán tổng hợp trên một khối lượng dữ liệu khổng lồ. Dữ liệu trong OLAP thường được phi chuẩn hóa (denormalized) và tổ chức theo các mô hình đa chiều (như Star Schema hoặc Snowflake Schema) để tăng tốc độ truy xuất cho các báo cáo kinh doanh.
+\end{itemize}
+
+Chính vì sự khác biệt hoàn toàn về mục đích và cấu trúc lưu trữ này, hệ thống phân tích (OLAP) cần phải được tách biệt khỏi hệ thống giao dịch (OLTP). Để đáp ứng nhu cầu phân tích ngày càng phức tạp, kiến trúc nền tảng dữ liệu đã trải qua ba giai đoạn tiến hóa mang tính cách mạng: từ Data Warehouse, Data Lake cho đến kiến trúc Lakehouse hiện đại.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{img1/Các loại kiến trúc .png}
+    \caption{Tiến trình tiến hóa từ kho dữ liệu truyền thống đến kiến trúc Lakehouse}
+    \label{fig:data-architecture-evolution}
+\end{figure}
+
+\begin{table}[H]
+    \centering
+    \renewcommand{\arraystretch}{1.4}
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{|p{3cm}|p{3.8cm}|p{3.8cm}|p{3.8cm}|}
+        \hline
+        \textbf{Tiêu chí} & \textbf{Data Warehouse} & \textbf{Data Lake} & \textbf{Lakehouse} \\ \hline
+        \textbf{Loại dữ liệu} & Dữ liệu có cấu trúc & Mọi loại dữ liệu (Thô, phi cấu trúc) & Đa dạng (Cả cấu trúc và phi cấu trúc) \\ \hline
+        \textbf{Cơ chế Schema} & Schema-on-write (Cố định trước khi nạp) & Schema-on-read (Linh hoạt khi truy vấn) & Kết hợp, hỗ trợ tính toàn vẹn (ACID) \\ \hline
+        \textbf{Mục đích chính} & Phân tích BI, báo cáo & Lưu trữ gốc, Khoa học dữ liệu (ML/AI) & Hợp nhất BI và Machine Learning \\ \hline
+        \textbf{Nhược điểm} & Chi phí cao, khó xử lý dữ liệu phi cấu trúc & Dễ trở thành "Data Swamp" do thiếu quản trị & Đòi hỏi công nghệ vận hành và thiết lập phức tạp \\ \hline
+    \end{tabular}}
+    \caption{So sánh đặc điểm của Data Warehouse, Data Lake và Lakehouse}
+\end{table}
+
+% TODO: OLTP vs OLAP; Data Warehouse / Data Lake / Lakehouse.
+
+\subsection{Mô hình hóa dữ liệu }
+Để quản lý và tổ chức luồng dữ liệu hiệu quả bên trong các hệ thống nền tảng dữ liệu hiện đại, đặc biệt là trên kiến trúc Lakehouse, \textbf{kiến trúc đa tầng Medallion (Medallion Architecture)} hiện đang được áp dụng rộng rãi như một tiêu chuẩn thiết kế cốt lõi. Về mặt bản chất, Medallion là mô hình tổ chức kho lưu trữ thành nhiều tầng (layer) kế tiếp nhau, trong đó mỗi tầng đại diện cho một mức độ gia tăng về chất lượng và độ phức tạp trong xử lý. 
+
+Theo mô hình này, dòng chảy dữ liệu sẽ đi qua một hành trình tinh luyện xuyên suốt: bắt đầu từ trạng thái thô nguyên bản (tầng Bronze), tiếp tục được làm sạch, chuẩn hóa và hợp nhất (tầng Silver), cho đến khi trở thành nguồn dữ liệu chất lượng cao, sẵn sàng phục vụ trực tiếp cho các nghiệp vụ phân tích và ra quyết định (tầng Gold). Việc chia tách rõ ràng thành các tầng chất lượng không chỉ giúp hệ thống kiểm soát và truy vết dữ liệu dễ dàng hơn, mà còn tạo nền móng vững chắc để áp dụng các kỹ thuật mô hình hóa dữ liệu chuyên sâu tại từng tầng tương ứng.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{img1/Medallion architecture.png}
+    \caption{Kiến trúc Medallion Architecture}
+    \label{fig:medallion-architecture}
+\end{figure}
+
+\subsubsection{Mô hình: Data Vault 2.0}
+% TODO: Hub / Link / Satellite; Business key & Hash key (MD5); Satellite SCD2.
+
+
+Data Vault 2.0 là phương pháp mô hình hóa dữ liệu được thiết kế chuyên biệt cho tầng lưu trữ trung gian (tầng Silver) trong kiến trúc nền tảng dữ liệu. Mục tiêu cốt lõi của phương pháp này là cung cấp khả năng lưu trữ toàn bộ lịch sử thay đổi của dữ liệu, đồng thời dễ dàng mở rộng và tích hợp thông tin từ nhiều nguồn khác nhau. Nếu như mô hình hình sao (Star Schema) được tối ưu hóa cho tốc độ truy vấn phân tích, thì Data Vault lại đặt ưu tiên hàng đầu vào tính linh hoạt và khả năng kiểm toán (audit) dữ liệu.
+
+Kiến trúc của một mô hình Data Vault 2.0 được cấu thành từ ba thành phần cốt lõi, hoạt động gắn kết chặt chẽ với nhau. \begin{itemize}
+    \item \textbf{Hub (Trung tâm):}
+    \begin{itemize}
+        \item Lưu trữ danh sách các khóa nghiệp vụ (Business Key) duy nhất của một thực thể (VD: mã khách hàng, mã thẻ).
+        \item Tuyệt đối không chứa thuộc tính mô tả.
+        \item Chỉ chứa khóa nghiệp vụ và các siêu dữ liệu metadata (ngày nạp, nguồn gốc).
+        \item Mỗi thực thể nghiệp vụ (business entity) đều có một Hub riêng biệt.
+    \end{itemize}
+    
+    \item \textbf{Link (Liên kết):}
+    \begin{itemize}
+        \item Lưu trữ mối quan hệ giữa các Hub với nhau (VD: khách hàng — thẻ, thẻ — giao dịch).
+        \item Xử lý các quan hệ nhiều-nhiều một cách tự nhiên, loại bỏ sự cần thiết của các bảng trung gian phức tạp.
+        \item Chỉ chứa giá trị băm (hash key) của các Hub liên quan kèm theo metadata.
+    \end{itemize}
+    
+    \item \textbf{Satellite (Vệ tinh):}
+    \begin{itemize}
+        \item Lưu trữ toàn bộ các thuộc tính mô tả chi tiết của một Hub hoặc một Link (VD: tên, địa chỉ, số dư...).
+        \item Một Hub hoặc Link có thể liên kết với nhiều Satellite, được phân chia theo nguồn cấp hoặc nhóm thuộc tính.
+        \item Là thành phần duy nhất chịu trách nhiệm lưu trữ lịch sử thay đổi của dữ liệu theo thời gian (SCD Type 2).
+    \end{itemize}
+\end{itemize}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{img1/Data vault.png}
+    \caption{Mô hình Data Vault 2.0}
+    \label{fig:data-vault-model}
+\end{figure}
+\subsubsection{Mô hình chiều (Star Schema)}
+
+Star Schema (mô hình hình sao) là một phương pháp mô hình hóa dữ liệu được sử dụng chủ yếu cho tầng phân tích (tầng Gold). Phương pháp này được thiết kế để tối ưu hóa cho các truy vấn tổng hợp dữ liệu với tốc độ cao, đồng thời sở hữu cấu trúc trực quan, dễ hiểu đối với người dùng cuối. Cấu trúc cốt lõi của mô hình bao gồm một bảng sự kiện (Fact table) được đặt ở trung tâm, bao quanh bởi các bảng chiều (Dimension table), tạo nên hình dáng giống như một ngôi sao khi nhìn từ trên xuống.
+
+Bảng sự kiện (Fact Table) đóng vai trò trung tâm trong mô hình, làm nhiệm vụ lưu trữ các sự kiện nghiệp vụ đã thực sự xảy ra trong hệ thống như các giao dịch, đơn đặt hàng hay lượt truy cập. Đặc điểm điển hình của bảng sự kiện là có dung lượng rất lớn và tăng trưởng liên tục theo thời gian. Về mặt cấu trúc, bảng này chứa các khóa ngoại trỏ đến các bảng chiều tương ứng, kèm theo các độ đo (measure) mang giá trị định lượng như số tiền hoặc số lượng. Dựa trên đặc thù lưu trữ, bảng sự kiện thường được phân thành các loại sau:
+\begin{itemize}
+    \item \textbf{Transaction fact (Sự kiện giao dịch):} Mỗi bản ghi đại diện cho một sự kiện đơn lẻ xảy ra tại một thời điểm cụ thể.
+    \item \textbf{Periodic snapshot (Chụp nhanh định kỳ):} Ghi nhận và lưu trữ trạng thái của hệ thống theo một chu kỳ thời gian nhất định, ví dụ như số dư tài khoản vào cuối mỗi ngày.
+    \item \textbf{Accumulating snapshot (Chụp nhanh lũy kế):} Được sử dụng để theo dõi toàn bộ tiến trình của một quy trình nghiệp vụ bao gồm nhiều bước nối tiếp nhau.
+\end{itemize}
+
+Bên cạnh bảng sự kiện và các bảng chiều nghiệp vụ, chiều thời gian (\texttt{dim\_date}) là một Dimension đặc biệt và gần như bắt buộc phải có trong mọi thiết kế Star Schema. Bảng này không chỉ lưu trữ thông tin ngày tháng đơn thuần mà còn chứa các thuộc tính phái sinh rất hữu ích cho việc phân tích như: thứ trong tuần, tuần trong năm, quý, cờ đánh dấu ngày lễ hoặc cờ đánh dấu ngày cuối tuần. Việc chuẩn hóa chiều thời gian cho phép hệ thống linh hoạt thực hiện các truy vấn phân tích theo nhiều mức độ chi tiết (granularity) khác nhau mà không cần phải thực hiện tính toán lại từ đầu.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{img1/Star Schema.png}
+    \caption{Mô hình Data Warehouse: Sơ đồ ngôi sao}
+    \label{fig:star-schema}
+\end{figure}
+
+\subsection{Nạp dữ liệu gia tăng (Incremental Loading), CDC và SCD}
+
+\subsubsection{Nạp dữ liệu gia tăng (Incremental Loading)}
+
+Trong quá trình luân chuyển và tích hợp dữ liệu vào kho, các hệ thống thường áp dụng hai chiến lược nạp dữ liệu cơ bản là nạp toàn bộ (Full Load) và nạp gia tăng (Incremental Load). Phương pháp Full Load thực hiện nạp lại toàn bộ dữ liệu từ hệ thống nguồn và ghi đè lên kho dữ liệu trong mỗi lần chạy. Mặc dù chiến lược này có ưu điểm là triển khai đơn giản, nó lại tiêu tốn rất nhiều tài nguyên tính toán và không thể lưu giữ được lịch sử thay đổi của hệ thống. 
+
+Để khắc phục nhược điểm đó, chiến lược Incremental Load được áp dụng nhằm chỉ nạp những phần dữ liệu mới phát sinh hoặc có sự thay đổi kể từ lần nạp trước đó. Cách tiếp cận này giúp hệ thống tiết kiệm đáng kể tài nguyên xử lý, đồng thời duy trì và giữ được lịch sử biến động của dữ liệu theo thời gian.
+
+\vspace{0.5em}
+\subsubsection{Change Data Capture (CDC)}
+
+Để hiện thực hóa được quá trình nạp dữ liệu gia tăng, hệ thống cần ứng dụng kỹ thuật Change Data Capture (CDC). CDC là kỹ thuật nhằm phát hiện và ghi lại các thao tác thay đổi xảy ra trên dữ liệu nguồn, bao gồm các hành động Thêm mới (Insert), Cập nhật (Update) và Xóa (Delete). Mục tiêu cốt lõi của CDC là giúp hệ thống biết được chính xác bản ghi nào đã bị thay đổi, nội dung thay đổi là gì và diễn ra vào lúc nào, từ đó chỉ tập trung xử lý đúng phần dữ liệu có biến động.
+
+Hiện nay, có bốn phương pháp triển khai CDC phổ biến với các cơ chế và ưu nhược điểm khác nhau:
+
+\begin{table}[H]
+    \centering
+    \renewcommand{\arraystretch}{1.4}
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{|p{3cm}|p{4cm}|p{3.5cm}|p{4cm}|}
+        \hline
+        \textbf{Phương pháp} & \textbf{Cơ chế} & \textbf{Ưu điểm} & \textbf{Nhược điểm} \\ \hline
+        \textbf{Timestamp-based} & So sánh dựa trên cột \texttt{updated\_at} & Triển khai đơn giản & Dễ bỏ sót các bản ghi bị xóa (Delete) \\ \hline
+        \textbf{Snapshot/Diff} & So sánh hai bản chụp (snapshot) liên tiếp & Không yêu cầu sửa đổi hệ thống nguồn & Tiêu tốn nhiều tài nguyên để so sánh \\ \hline
+        \textbf{Log-based} & Đọc trực tiếp từ transaction log của Database & Đầy đủ thông tin nhất, tiêu tốn ít tài nguyên nguồn & Phụ thuộc nhiều vào kiến trúc của hệ thống Database \\ \hline
+        \textbf{Trigger-based} & Gắn Trigger để ghi lại các thay đổi vào bảng audit & Độ chính xác cao & Làm tăng tải hoạt động của hệ thống nguồn \\ \hline
+    \end{tabular}}
+    \caption{So sánh các phương pháp Change Data Capture (CDC) phổ biến}
+\end{table}
+
+\vspace{0.5em}
+\subsubsection{Slowly Changing Dimension (SCD)}
+
+Sau khi dữ liệu thay đổi được CDC bắt giữ và đẩy về kho, hệ thống phải đối mặt với bài toán Slowly Changing Dimension (SCD) — đây là bài toán chuyên xử lý sự thay đổi của dữ liệu chiều (Dimension) theo thời gian trong kho dữ liệu. Câu hỏi cốt lõi được đặt ra là: khi thông tin của một thực thể thay đổi (ví dụ: khách hàng đổi địa chỉ, nâng hạng thẻ), hệ thống nên ghi đè thông tin mới hay giữ lại lịch sử? Tùy thuộc vào nhu cầu phân tích, kho dữ liệu thường áp dụng ba phương pháp (Type) chính:
+
+\begin{itemize}
+    \item \textbf{SCD Type 1 (Ghi đè):} Phương pháp này cập nhật trực tiếp giá trị mới đè lên giá trị cũ. Do không lưu lại lịch sử, cách làm này rất đơn giản nhưng lại làm mất đi thông tin trong quá khứ. SCD Type 1 thường chỉ được dùng khi lịch sử thay đổi của thuộc tính không mang lại giá trị phân tích.
+    
+    \item \textbf{SCD Type 2 (Thêm bản ghi mới):} Khi có sự thay đổi, hệ thống sẽ thực hiện đóng bản ghi cũ và thêm một bản ghi mới chứa giá trị vừa được cập nhật. Cách tiếp cận này giúp lưu trữ được toàn bộ lịch sử thay đổi của dữ liệu. Để quản lý các phiên bản, bảng dữ liệu thường sử dụng thêm các cột như \texttt{effective\_from}, \texttt{effective\_to} nhằm xác định đâu là phiên bản hiện hành. SCD Type 2 rất phù hợp cho các bài toán cần phân tích theo trạng thái dữ liệu tại một thời điểm cụ thể trong quá khứ.
+    
+    \item \textbf{SCD Type 3 (Thêm cột):} Thay vì thêm dòng, phương pháp này giữ cả giá trị cũ và giá trị mới trong cùng một bản ghi bằng cách thêm cột mới (ví dụ: cột \texttt{previous\_value}). Phương pháp này có nhiều hạn chế vì nó chỉ có khả năng lưu lại được một lần thay đổi gần nhất của thực thể.
+\end{itemize}
+% TODO: Change Data Capture; mẫu snapshot/diff (tdy--pdy--mns), cờ I/U/D; idempotency.
+\subsection{Các khái niệm cốt lõi trong bài toán xử lý ảnh và OCR}
+
+Để trích xuất thông tin chính xác từ các chứng từ vật lý (như CCCD, Sổ tiết kiệm), hệ thống cần áp dụng chuỗi các kỹ thuật thị giác máy tính nhằm tiền xử lý ảnh và nhận dạng ký tự. Dưới đây là các khái niệm và kỹ thuật nền tảng được sử dụng:
+
+\begin{itemize}
+    \item \textbf{Khái niệm OCR (Optical Character Recognition):} 
+    Là công nghệ chuyển đổi hình ảnh chứa văn bản (ảnh scan, ảnh chụp) thành định dạng văn bản có thể máy đọc và xử lý được. Quá trình OCR hiện đại thường được chia làm hai giai đoạn độc lập:
+    \begin{itemize}
+        \item \textit{Text Detection (Định vị văn bản):} Quét bức ảnh để xác định tọa độ (bounding box) của các vùng chứa chữ.
+        \item \textit{Text Recognition (Nhận dạng văn bản):} Trích xuất và giải mã các hình ảnh cắt từ vùng chứa chữ thành các ký tự (string) thực tế.
+    \end{itemize}
+
+    \item \textbf{Không gian màu BGR, Grayscale và HSV:}
+    \begin{itemize}
+        \item \textit{BGR (Blue - Green - Red):} Là không gian màu mặc định được thư viện OpenCV sử dụng khi đọc ảnh (ngược với thứ tự RGB thông thường).
+        \item \textit{Grayscale (Ảnh xám):} Biến đổi ảnh màu 3 kênh thành ảnh 1 kênh duy nhất mang giá trị cường độ sáng từ 0 (đen) đến 255 (trắng). Phép biến đổi này giúp giảm thiểu khối lượng tính toán và tập trung vào các đặc trưng hình học của nét chữ.
+        \item \textit{HSV (Hue - Saturation - Value):} Phân tách hình ảnh thành Màu sắc, Độ bão hòa và Độ sáng. Không gian này đặc biệt hữu ích khi cần tách nền chứng từ dựa trên đặc trưng màu sắc hoặc xử lý các ảnh bị đổ bóng mờ.
+    \end{itemize}
+
+    \item \textbf{Tăng cường độ tương phản (CLAHE):}
+    CLAHE (Contrast Limited Adaptive Histogram Equalization) là kỹ thuật cân bằng biểu đồ mức xám có giới hạn độ tương phản thích nghi. Thay vì áp dụng trên toàn bộ ảnh, CLAHE chia ảnh thành các khối nhỏ (tiles) và cân bằng sáng cho từng khối. Điều này giúp làm nổi bật nét chữ trên các vùng nền tối mà không làm khuếch đại nhiễu (noise) ở các vùng nền đồng nhất.
+
+    \item \textbf{Khử nhiễu qua thuật toán Non-local Means:}
+    Đây là thuật toán loại bỏ nhiễu hạt trên ảnh rất hiệu quả. Khác với các bộ lọc thông thường chỉ làm mờ (blur) ảnh xung quanh điểm xét, Non-local Means tính toán giá trị trung bình dựa trên tất cả các điểm ảnh có vùng lân cận tương đồng nhau trên toàn bộ bức ảnh. Kỹ thuật này giúp làm sạch nền chứng từ nhưng vẫn giữ được độ sắc nét tuyệt đối cho các cạnh và viền của chữ.
+
+    \item \textbf{Ngưỡng hóa thích nghi (Adaptive Thresholding):}
+    Là phương pháp chuyển ảnh xám thành ảnh nhị phân (chỉ có 2 màu đen/trắng). Do ảnh chụp thực tế thường có ánh sáng không đều (chỗ bị chói, chỗ đổ bóng), thuật toán này sẽ tự động tính toán một ngưỡng (threshold) riêng biệt cho từng vùng nhỏ cục bộ thay vì dùng một ngưỡng cố định cho toàn ảnh, từ đó giúp tách chữ ra khỏi nền một cách triệt để.
+
+    \item \textbf{Phát hiện cạnh với thuật toán Canny (Canny Edge Detection):}
+    Là kỹ thuật trích xuất các đường viền của đối tượng dựa trên sự thay đổi đột ngột về cường độ sáng của điểm ảnh. Trong bài toán chứng từ, thuật toán Canny đóng vai trò then chốt để phát hiện ra các khung viền của thẻ CCCD hoặc khung viền của từng dòng chữ.
+
+    \item \textbf{Biến đổi phối cảnh (Perspective Transform):}
+    Hình ảnh chụp từ điện thoại thường bị méo do góc chụp nghiêng. Phép biến đổi phối cảnh là một phép biến đổi hình học tính toán ma trận dịch chuyển dựa trên 4 điểm góc của chứng từ, qua đó "nắn" bức ảnh về dạng hình chữ nhật phẳng với góc nhìn thẳng từ trên xuống (bird's-eye view), khôi phục tỷ lệ thực của tài liệu.
+
+    \item \textbf{Chỉnh nghiêng (Deskew) qua Hough Lines:}
+    Để OCR đọc chính xác, các dòng chữ phải nằm ngang. Hệ thống sử dụng phép biến đổi Hough (Hough Transform) để tìm kiếm các đường thẳng dài trong ảnh (như dòng kẻ, lề văn bản). Dựa trên góc nghiêng của các đường này, hệ thống sẽ tính toán góc bù và xoay (rotate) lại toàn bộ bức ảnh về góc 0 độ chuẩn xác.
+
+    \item \textbf{Điểm tin cậy OCR (Confidence Score):}
+    Là chỉ số đánh giá (thường dao động từ 0 đến 1, hoặc 0-100\%) thể hiện mức độ "chắc chắn" của mô hình AI đối với kết quả dự đoán của một từ hoặc một ký tự. Chỉ số này rất quan trọng để thiết lập các ngưỡng tự động hóa: nếu điểm tin cậy thấp hơn ngưỡng cho phép, hệ thống sẽ gắn cờ cảnh báo (flag) yêu cầu con người (human-in-the-loop) tham gia đối chiếu lại.
+\end{itemize}

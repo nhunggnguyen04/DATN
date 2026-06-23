@@ -1,0 +1,204 @@
+\chapter{Khảo sát đề tài}
+\label{ch:survey}
+
+\section{Khảo sát bài toán nghiệp vụ và mô hình dữ liệu}
+
+Môi trường vận hành của một ngân hàng hiện đại thường bao gồm rất nhiều hệ thống hoạt động song song nhằm đáp ứng các nghiệp vụ khác nhau, điển hình như hệ thống Core Banking (xử lý giao dịch), CRM (quản lý quan hệ khách hàng), Card Management (quản lý thẻ) và KYC/Document Management (quản lý chứng từ định danh). Đặc thù này dẫn đến việc dữ liệu bị phân tán ở nhiều nơi và thiếu tính đồng nhất, gây ra rào cản rất lớn cho việc tổng hợp và phân tích thông tin một cách toàn diện. Từ thực trạng đó, nhu cầu cấp thiết là phải hợp nhất các nguồn dữ liệu này vào một nền tảng trung tâm. Dựa trên nguồn dữ liệu được hợp nhất, hệ thống nền tảng dữ liệu trong đồ án được định hướng giải quyết hai chủ đề phân tích (Business Intelligence) cốt lõi sau đây:
+
+\begin{itemize}
+    \item \textbf{Chủ đề 1: Phân khúc khách hàng và Marketing.} Mục tiêu nghiệp vụ của bài toán này là xác định các nhóm khách hàng tiềm năng nhằm phục vụ chiến lược up-sell các loại thẻ hoặc mời chào các gói vay. Quá trình phân tích sẽ dựa trên hành vi chi tiêu và hồ sơ tài chính của khách hàng. Kết quả đầu ra (insight) phục vụ trực tiếp cho các phòng ban như Phòng Marketing, Quản lý sản phẩm (Thẻ \& Vay), Quản lý quan hệ khách hàng (Relationship Management) và Ban lãnh đạo.
+    
+    \item \textbf{Chủ đề 2: Phân tích giao dịch và Quản trị rủi ro.} Bài toán này hướng tới mục tiêu cải thiện chất lượng dịch vụ và bảo vệ ngân hàng thông qua việc giảm thiểu lỗi giao dịch, thúc đẩy tỷ lệ sử dụng thẻ chip an toàn, cũng như phát hiện sớm các tín hiệu cảnh báo rủi ro vỡ nợ. Các báo cáo từ chủ đề này là công cụ đắc lực cho Phòng Vận hành (Operations), Quản trị rủi ro (Risk Management), Phân tích gian lận (Fraud Analysis), Trải nghiệm khách hàng và Giám đốc Quản trị Rủi ro (CRO).
+\end{itemize}
+
+\subsection{Dữ liệu có cấu trúc (Structured Data)}
+
+Trong bức tranh tổng thể, dữ liệu có cấu trúc đóng vai trò xương sống cho hầu hết các luồng phân tích nghiệp vụ ngân hàng. Đây là các dữ liệu được định nghĩa rõ ràng, lưu trữ dưới dạng bảng và có tính quan hệ chặt chẽ, bao gồm các thực thể chính sau:
+
+\begin{itemize}
+    \item \textbf{Khách hàng (\texttt{customers}):} Dữ liệu được trích xuất từ hệ thống CRM và Core Banking, đóng vai trò cung cấp thông tin nền tảng để phân khúc thu nhập, đánh giá rủi ro tín dụng và phân tích hành vi chi tiêu của từng cá nhân.
+    \item \textbf{Thẻ (\texttt{cards}):} Nguồn dữ liệu từ hệ thống Card Management, cung cấp các thông số chi tiết như loại thẻ, hạn mức khả dụng, tuổi đời của thẻ, tình trạng bảo mật (PIN) và tình trạng sử dụng chip vật lý.
+    \item \textbf{Giao dịch (\texttt{transactions}):} Thu thập từ Core Banking, đây là thực thể có dung lượng lớn nhất và phát sinh liên tục trong hệ thống. Nó phản ánh toàn bộ các hoạt động tài chính như doanh số, các lỗi giao dịch phát sinh và vị trí thực hiện.
+    \item \textbf{Đơn vị chấp thuận thanh toán (\texttt{merchants}) và Danh mục MCC (\texttt{mcc\_codes}):} Dữ liệu đơn vị chấp thuận thanh toán giúp ngân hàng theo dõi sự phân bổ địa lý của các giao dịch và phát hiện các mẫu bất thường. Đồng thời, mã danh mục đơn vị chấp nhận thẻ (MCC) được phân loại theo tiêu chuẩn ISO 18245 giúp hệ thống dễ dàng nhóm các hành vi chi tiêu của khách hàng theo từng ngành nghề kinh doanh cụ thể.
+\end{itemize}
+
+\subsection{Dữ liệu phi cấu trúc (Unstructured Data)}
+
+Bên cạnh nguồn dữ liệu có cấu trúc, các ngân hàng còn sở hữu một khối lượng khổng lồ dữ liệu phi cấu trúc, chủ yếu tồn tại dưới dạng hình ảnh scan từ các quy trình nghiệp vụ vật lý. Điển hình trong phạm vi đồ án này là hai loại tài liệu:
+
+\begin{itemize}
+    \item \textbf{Căn cước công dân (CCCD):} Đây là tài liệu thu thập từ quy trình nhận biết khách hàng (KYC) khi người dùng yêu cầu mở tài khoản. Các thông tin trọng yếu cần bóc tách bao gồm: họ tên, ngày sinh, số CCCD, địa chỉ và ngày cấp.
+    \item \textbf{Sổ tiết kiệm:} Tương ứng với các chứng từ giao dịch gửi tiết kiệm truyền thống, yêu cầu trích xuất các thông tin cốt lõi như số tài khoản, số tiền, mức lãi suất và kỳ hạn.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{img2/cccd_chip_0406085313.png }
+    \caption{Mẫu hình ảnh CCCD ngoài thực tế}
+    \label{fig:real-cccd-sample}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{img2/Sổ tiết kiệm.png }
+    \caption{Mẫu hình ảnh sổ tiết kiệm ngoài thực tế}
+    \label{fig:real-savings-book-sample}
+\end{figure}
+
+Đặc điểm lớn nhất của loại hình dữ liệu này là chúng tồn tại dưới dạng ảnh pixels, dẫn đến việc không thể thực hiện các câu truy vấn (query) trực tiếp. Để khai thác, hệ thống bắt buộc phải trải qua bước tiền xử lý bằng công nghệ nhận dạng ký tự quang học (OCR) nhằm chuyển đổi hình ảnh thành văn bản.
+
+
+\section{Khảo sát hiện trạng và các vấn đề tồn đọng}
+
+Qua khảo sát, hệ thống dữ liệu hiện tại của ngân hàng đang bộc lộ nhiều hạn chế cốt lõi, ảnh hưởng trực tiếp đến khả năng vận hành và phân tích:
+
+\begin{itemize}
+    \item \textbf{Dữ liệu phân tán, thiếu hợp nhất:} Các hệ thống nghiệp vụ (Core Banking, CRM...) hoạt động hoàn toàn rời rạc. Việc thiếu vắng "nguồn sự thật duy nhất" buộc các phòng ban phải làm báo cáo thủ công, dẫn đến mâu thuẫn số liệu và sai lệch định dạng.
+    
+    \item \textbf{Không lưu vết lịch sử:} Các hệ thống OLTP liên tục ghi đè trạng thái mới lên dữ liệu cũ. Điều này khiến hệ thống mất khả năng truy xuất và phân tích trạng thái của khách hàng tại các thời điểm trong quá khứ.
+    
+    \item \textbf{Lãng phí dữ liệu phi cấu trúc:} Các chứng từ định danh quan trọng (CCCD, sổ tiết kiệm) chỉ được lưu trữ dưới dạng ảnh scan. Việc không thể truy vấn tự động khiến ngân hàng tốn kém nhiều nhân lực cho việc xác minh thủ công.
+    
+    \item \textbf{Thiếu tự động hóa và kiểm soát chất lượng:} Việc chạy báo cáo bằng tay gây chậm trễ và dễ sinh lỗi. Đồng thời, hệ thống thiếu cơ chế bắt lỗi tự động (bản ghi trùng, giá trị rỗng), khiến dữ liệu "bẩn" lọt vào báo cáo làm sai lệch quyết định kinh doanh.
+    
+    \item \textbf{Thiếu dấu vết kiểm toán (Audit Trail):} Các luồng nạp dữ liệu không hề ghi nhận lại lịch sử thực thi (thời gian chạy, trạng thái thành công/thất bại). Hậu quả là kỹ sư dữ liệu không có cơ sở để truy vết nguyên nhân khi xảy ra sự cố.
+\end{itemize}
+
+\section{Khảo sát các giải pháp và kiến trúc hiện có}
+
+Qua khảo sát thực tế tại thị trường Việt Nam, hệ thống dữ liệu của các ngân hàng hiện được chia thành 3 nhóm kiến trúc chính, phản ánh các giai đoạn chuyển đổi số khác nhau.
+
+\subsection{Nhóm 1: Kiến trúc truyền thống (Legacy DWH + ETL)}
+
+\textbf{Đại diện điển hình:} Agribank, BIDV, VietinBank, Vietcombank (ở các giai đoạn trước khi tiến hành chuyển đổi).
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[
+        node distance=0.8cm,
+        >=Stealth,
+        box/.style={rectangle, draw=blue!80!black, fill=blue!5, thick, minimum width=8cm, minimum height=0.8cm, align=center, rounded corners=3pt},
+        arrow/.style={->, thick, draw=gray!70, line width=1.2pt}
+    ]
+        % Nodes
+        \node[box] (src) {\textbf{Core Banking} \\ \footnotesize (T24 / Oracle FLEXCUBE / Silverlake)};
+        \node[box, below=of src] (etl) {\textbf{ETL} \\ \footnotesize (Informatica / IBM DataStage / SSIS)};
+        \node[box, below=of etl] (dwh) {\textbf{Traditional DWH} \\ \footnotesize (Oracle / SQL Server)};
+        \node[box, below=of dwh] (bi) {\textbf{BI} \\ \footnotesize (IBM Cognos / SAP BusinessObjects / MicroStrategy)};
+
+        % Arrows
+        \draw[arrow] (src) -- (etl);
+        \draw[arrow] (etl) -- (dwh);
+        \draw[arrow] (dwh) -- (bi);
+    \end{tikzpicture}
+    \caption{Sơ đồ kiến trúc dữ liệu truyền thống}
+\end{figure}
+
+\begin{itemize}
+    \item \textbf{Đặc điểm:} Sử dụng schema cứng, tốn nhiều chi phí bản quyền phần mềm (license). Hệ thống đáp ứng tốt các yêu cầu báo cáo định kỳ cho Ngân hàng Nhà nước (NHNN).
+    \item \textbf{Hạn chế:} Chỉ cung cấp báo cáo T+1 (độ trễ 1 ngày). Không lưu trữ được lịch sử thay đổi của khách hàng, khó tích hợp đa kênh và thời gian xây dựng các báo cáo ad-hoc rất chậm (từ vài ngày đến hàng tuần).
+\end{itemize}
+
+\subsection{Nhóm 2: Đang chuyển đổi (Hybrid On-prem + Cloud)}
+
+\textbf{Đại diện điển hình:} MB Bank, VPBank, HDBank, SeABank.
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[
+        node distance=0.8cm,
+        >=Stealth,
+        box/.style={rectangle, draw=teal!80!black, fill=teal!5, thick, minimum width=8cm, minimum height=0.8cm, align=center, rounded corners=3pt},
+        arrow/.style={->, thick, draw=gray!70, line width=1.2pt}
+    ]
+        % Nodes
+        \node[box] (src) {\textbf{Core Banking (On-premise)} \\ \footnotesize (Giữ nguyên để tuân thủ quy định NHNN)};
+        \node[box, below=of src] (ingest) {\textbf{Ingestion} \\ \footnotesize (CDC / Kafka Streaming)};
+        \node[box, below=of ingest] (dl) {\textbf{Data Lake} \\ \footnotesize (Azure Data Lake / AWS S3)};
+        \node[box, below=of dl] (process) {\textbf{Processing} \\ \footnotesize (Spark / dbt)};
+        \node[box, below=of process] (dwh) {\textbf{Cloud DWH} \\ \footnotesize (Azure Synapse / Amazon Redshift)};
+        \node[box, below=of dwh] (bi) {\textbf{BI \& Analytics} \\ \footnotesize (Power BI / Tableau)};
+
+        % Arrows
+        \draw[arrow] (src) -- (ingest);
+        \draw[arrow] (ingest) -- (dl);
+        \draw[arrow] (dl) -- (process);
+        \draw[arrow] (process) -- (dwh);
+        \draw[arrow] (dwh) -- (bi);
+    \end{tikzpicture}
+    \caption{Sơ đồ kiến trúc lai (Hybrid) đang chuyển đổi}
+\end{figure}
+
+\begin{itemize}
+    \item \textbf{Đặc điểm:} Hệ thống Core giữ tại local (on-premise) để tuân thủ luật lưu trữ dữ liệu trong nước, trong khi luồng phân tích (workload) được đẩy lên Cloud để tận dụng khả năng mở rộng. Đã bắt đầu ứng dụng Data Lake để lưu dữ liệu phi cấu trúc và manh nha áp dụng kiến trúc Medallion.
+    \item \textbf{Hạn chế:} Tồn tại song song hai môi trường (on-prem và cloud) chưa thông suốt hoàn toàn. Chi phí vận hành tăng cao trong giai đoạn chuyển tiếp và kỹ năng nhân sự nội bộ chưa theo kịp tốc độ đổi mới công nghệ.
+\end{itemize}
+
+\subsection{Nhóm 3: Kiến trúc hiện đại (Modern Data Stack)}
+
+\textbf{Đại diện điển hình:} Techcombank, TPBank, VIB.
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[
+        node distance=0.8cm,
+        >=Stealth,
+        box/.style={rectangle, draw=purple!80!black, fill=purple!5, thick, minimum width=8cm, minimum height=0.8cm, align=center, rounded corners=3pt},
+        arrow/.style={->, thick, draw=gray!70, line width=1.2pt}
+    ]
+        % Nodes
+        \node[box] (src) {\textbf{Đa nguồn (Multi-source)} \\ \footnotesize (Core Banking + CRM + Mobile App + Web + ATM)};
+        \node[box, below=of src] (stream) {\textbf{Streaming \& Ingestion} \\ \footnotesize (Kafka / Pub-Sub)};
+        \node[box, below=of stream] (dl) {\textbf{Cloud Data Lake} \\ \footnotesize (Google Cloud Storage / AWS S3)};
+        \node[box, below=of dl] (transform) {\textbf{Orchestration \& Transform} \\ \footnotesize (dbt + Airflow / Cloud Composer)};
+        \node[box, below=of transform] (dwh) {\textbf{Cloud DWH} \\ \footnotesize (BigQuery / Snowflake)};
+        \node[box, below=of dwh] (serve) {\textbf{Consumption} \\ \footnotesize (Looker / Power BI / Tableau + ML Platform)};
+
+        % Arrows
+        \draw[arrow] (src) -- (stream);
+        \draw[arrow] (stream) -- (dl);
+        \draw[arrow] (dl) -- (transform);
+        \draw[arrow] (transform) -- (dwh);
+        \draw[arrow] (dwh) -- (serve);
+    \end{tikzpicture}
+    \caption{Sơ đồ ngăn xếp dữ liệu hiện đại (Modern Data Stack)}
+\end{figure}
+
+\begin{itemize}
+    \item \textbf{Đặc điểm:} Đây là xu hướng đích đến của ngành. Hệ thống chuyển hoàn toàn từ ETL sang ELT (nạp dữ liệu thô vào kho trước rồi mới dùng dbt để biến đổi).
+    \item \textbf{Ưu điểm vượt trội:} Khả năng xử lý dữ liệu gần thời gian thực (near real-time) phục vụ phát hiện gian lận. Kiến trúc Medallion/Lakehouse được áp dụng bài bản có hệ thống, đồng thời tích hợp trực tiếp các luồng Machine Learning (ML pipeline) ngay trên nền tảng để chấm điểm tín dụng và phân khúc khách hàng.
+\end{itemize}
+\subsection{Ràng buộc pháp lý đặc thù tại Việt Nam}
+
+Khác với xu hướng công nghệ của các ngân hàng trên thế giới, việc lựa chọn và thiết kế kiến trúc hệ thống dữ liệu tại Việt Nam chịu sự chi phối mạnh mẽ bởi các khung pháp lý và quy định đặc thù của cơ quan quản lý nhà nước. Cụ thể, kiến trúc dữ liệu bị ảnh hưởng trực tiếp bởi các quy định sau:
+
+\begin{itemize}
+    \item \textbf{Thông tư 09/2020/TT-NHNN (An toàn hệ thống thông tin):} Yêu cầu kiến trúc hệ thống phải hỗ trợ việc phân loại và thực hiện đánh giá rủi ro định kỳ.
+    \item \textbf{Nghị định 13/2023/NĐ-CP (Bảo vệ dữ liệu cá nhân):} Đây là rào cản lớn nhất đối với điện toán đám mây, quy định dữ liệu khách hàng bắt buộc phải được lưu trữ trong nước, hạn chế việc ngân hàng đẩy dữ liệu lên các nền tảng Public Cloud của nước ngoài.
+    \item \textbf{Thông tư 35/2016/TT-NHNN (An toàn bảo mật):} Đòi hỏi hệ thống nền tảng phải thiết lập cơ chế kiểm soát truy cập phân quyền chặt chẽ và có khả năng mã hóa toàn bộ dữ liệu nhạy cảm.
+    \item \textbf{Yêu cầu báo cáo NHNN:} Bất kể kiến trúc nào được áp dụng, ngân hàng vẫn phải duy trì một luồng hệ thống có khả năng xuất và nộp báo cáo định kỳ theo đúng quy chuẩn do Ngân hàng Nhà nước ban hành.
+\end{itemize}
+
+\textbf{Hệ quả thực tế:} Từ những ràng buộc pháp lý khắt khe nêu trên, đa số các ngân hàng tại Việt Nam hiện nay đều ưu tiên lựa chọn triển khai mô hình đám mây riêng (Private Cloud) hoặc kiến trúc lai (Hybrid Cloud) nhằm kết hợp sự linh hoạt của điện toán đám mây với tính bảo mật của On-premise, thay vì chuyển dịch hoàn toàn lên Public Cloud như xu hướng của các ngân hàng phương Tây.
+
+\section{Khảo sát các phương pháp xử lý ảnh hiện có}
+
+
+
+
+
+\section{Yêu cầu đặt ra đối với hệ thống}
+\subsection{Yêu cầu chức năng}
+\begin{itemize}
+    \item Thu thập và trích xuất tự động dữ liệu từ cơ sở dữ liệu và hình ảnh chứng từ.
+    \item Tích hợp nạp dữ liệu gia tăng (Incremental Loading) hàng ngày.
+    \item Lưu trữ đầy đủ lịch sử thay đổi của các thực thể.
+    \item Kiểm soát chất lượng dữ liệu và giám sát quy trình chuyển đổi, đảm bảo dữ liệu trong quá trình chuyển đổi không có bất kì sai sót nào ảnh hưởng đến quyết định Kinh doanh
+\end{itemize}
+
+\subsection{Yêu cầu phi chức năng}
+\begin{itemize}
+    \item \textbf{Tính lũy đẳng (Idempotency):} Chạy lại một luồng công việc nhiều lần không làm sai lệch hay nhân bản dữ liệu.
+    \item \textbf{Chất lượng và Giám sát (DQ \& Audit):} Hệ thống phải tự động kiểm tra lỗi (Null, trùng lặp) và ghi log.
+    \item \textbf{Tính tự động hóa:} Chạy theo lịch trình đã được định sẵn mà không cần can thiệp thủ công.
+\end{itemize}

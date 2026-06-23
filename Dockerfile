@@ -39,7 +39,9 @@ RUN python3 -m venv /opt/airflow/.venv_ocr && \
     /opt/airflow/.venv_ocr/bin/pip install --no-cache-dir \
         "paddlepaddle==3.2.2" \
         "paddleocr>=2.7.0" \
-        "openpyxl>=3.1.0"
+        "openpyxl>=3.1.0" \
+        "flask>=3.0.0" \
+        "requests>=2.31.0"
 
 # Mặc định work dir
 WORKDIR /opt/airflow

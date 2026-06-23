@@ -1,0 +1,1059 @@
+\chapter{Xây dựng chương trình}
+\label{ch:implementation}
+
+\section{Công nghệ sử dụng}
+\label{sec:tech}
+
+\subsection{Hệ quản trị Cơ sở dữ liệu và Kho dữ liệu}
+
+
+Trong kiến trúc của nền tảng, Microsoft SQL Server được lựa chọn làm "trái tim" lưu trữ và xử lý dữ liệu của toàn bộ hệ thống. Quyết định sử dụng công nghệ này dựa trên các yếu tố kỹ thuật và kiến trúc sau:
+
+\begin{itemize}
+    \item \textbf{Đóng vai trò kép:} SQL Server đảm nhận đồng thời hai nhiệm vụ quan trọng. Thứ nhất, nó đóng vai trò là nguồn dữ liệu tác nghiệp (OLTP) lưu trữ  Thứ hai, nó đóng vai trò là Kho dữ liệu đích (Data Warehouse) với tên database là \texttt{DATN}. Kho dữ liệu phân tích này được tổ chức quy củ thành 4 schema độc lập bao gồm: \texttt{bronze}, \texttt{silver}, \texttt{gold}, và \texttt{audit}.
+    
+    \item \textbf{Tương thích hệ sinh thái \& Kiến trúc Data Vault:} SQL Server tích hợp vô cùng mượt mà với công cụ \textbf{dbt} (Data Build Tool) thông qua adapter \texttt{dbt-sqlserver}. Đây là nền tảng, bắt buộc phải có để xây dựng thành công kiến trúc Data Vault 2.0 tại tầng Silver. Ngoài ra, việc sử dụng nền tảng của Microsoft hoàn toàn bám sát với xu hướng công nghệ thực tế tại các Ngân hàng và tổ chức Tài chính lớn.
+    
+    \item \textbf{Mô hình triển khai mạng tối ưu:} Nhằm tối ưu hóa hiệu năng I/O cho cơ sở dữ liệu thay vì bọc qua một lớp ảo hóa, SQL Server được cài đặt chạy trực tiếp trên máy chủ vật lý (Host Windows). Các thành phần điều phối chạy trong Docker Container (như Airflow) sẽ kết nối ngược ra môi trường host sử dụng \texttt {driver ODBC 17}.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+
+    \includegraphics[width=0.7\textwidth]{img4/sql server.png} 
+    \caption{Hệ quản trị cơ sở dữ liệu SQL Server}
+    \label{fig:sql-server-tool}
+\end{figure}
+
+
+\subsection{Công cụ điều phối và biến đổi dữ liệu}
+% TODO: Trình bày các công nghệ cốt lõi để chạy Data Pipeline:
+\begin{itemize}
+    \item \textbf{Apache Airflow (Điều phối):} Lập lịch, quản lý phụ thuộc (dependencies) và giám sát trạng thái thực thi của các luồng công việc (DAGs).
+    \item \textbf{dbt - data build tool (Biến đổi):} Viết các model bằng SQL để thực hiện phép biến đổi dữ liệu từ tầng Bronze sang Silver (Data Vault) và Gold (Star Schema), đồng thời quản lý tài liệu và kiểm thử (dbt tests).
+\end{itemize}
+\begin{figure}[H]
+    \centering
+
+    \includegraphics[width=0.7\textwidth]{img4/Gemini_Generated_Image_364pk0364pk0364p.png} 
+    \caption{Công cụ điều phối và biến đổi dữ liệu}
+    \label{fig:airflow-dbt-tools}
+\end{figure}
+
+
+\subsection{Xử lý ảnh và trích xuất tài liệu}
+% TODO: Giới thiệu thư viện PaddleOCR:
+\begin{itemize}
+    \item Ứng dụng mô hình AI của PaddleOCR để nhận diện văn bản (Optical Character Recognition) từ các ảnh chứng từ.
+    \item Tiền xử lý ảnh (OpenCV) và trích xuất thông tin (CCCD, sổ tiết kiệm) chuyển đổi thành định dạng có cấu trúc.
+\end{itemize}
+\begin{figure}[H]
+    \centering
+
+    \includegraphics[width=0.7\textwidth]{img4/opencv.png} 
+    \caption{Công cụ xử lý ảnh và trích xuất dữ liệu}
+    \label{fig:opencv-ocr-tool}
+\end{figure}
+
+\subsection{Đóng gói và quản lý môi trường}
+% TODO: Cách thức thiết lập môi trường chạy ổn định:
+\begin{itemize}
+    \item \textbf{Docker \& \texttt{docker-compose}:} Đóng gói các dịch vụ (Airflow, SQL Server) vào container để dễ dàng triển khai.
+    \item \textbf{Quản lý môi trường Python:} Phân tách các thư viện xung đột bằng hai môi trường ảo độc lập: \texttt{.venv} (cho Airflow/dbt) và \texttt{.venv\_ocr} (cho PaddleOCR).
+\begin{figure}[H]
+    \centering
+
+    \includegraphics[width=0.5\textwidth]{img4/dockerize-windows-app.png} 
+    \caption{Công cụ đóng gói và quản lý môi trường}
+    \label{fig:docker-environment-tool}
+\end{figure}
+
+\end{itemize}
+
+
+
+\subsection{Trực quan hóa dữ liệu (BI)}
+Xây dựng Báo cáo Phân tích Giao dịch (Power BI Dashboards) Kết nối nền tảng Power BI trực tiếp với tầng dữ liệu Gold (Star Schema). Hệ thống khai thác các bảng chiều và bảng fact để trực quan hóa lịch sử giao dịch và phân tích hành vi khách hàng.
+\begin{figure}[H]
+    \centering
+
+    \includegraphics[width=0.5\textwidth]{img4/power-bi.png} 
+    \caption{Công cụ trực quan hóa dữ liệu}
+    \label{fig:power-bi-tool}
+\end{figure}
+
+\section{Quy trình xây dựng Pipeline dữ liệu có cấu trúc}
+
+
+\subsection{Trích xuất và nạp dữ liệu vào tầng Bronze}
+
+Tầng Bronze có nhiệm vụ tiếp nhận dữ liệu thô từ hệ thống OLTP và lưu
+trữ nguyên trạng mà không thực hiện bất kỳ phép biến đổi nào. Toàn bộ
+giá trị được giữ dưới dạng chuỗi như nguồn gốc, việc ép kiểu chỉ diễn
+ra ở tầng Silver.
+
+\subsubsection*{a) Cấu trúc ba bảng theo mẫu MNS}
+
+Mỗi entity dữ liệu (users, cards, transactions, mcc\_codes) được tổ
+chức thành ba bảng với vai trò tách biệt:
+
+\begin{itemize}
+    \item \textbf{*\_tdy (Today):} Lưu batch dữ liệu của ngày chạy hiện
+          tại, được truncate và nạp lại từ đầu trong mỗi lần thực thi.
+    \item \textbf{*\_pdy (Previous Day):} Snapshot lũy kế, lưu trạng thái
+          gần nhất của mọi bản ghi từng xuất hiện qua các lần chạy trước.
+    \item \textbf{*\_mns (Minus):} Bảng change-set chứa cặp
+          \texttt{(id, operation\_flag)}, là đầu ra của bước so sánh và
+          là đầu vào duy nhất mà tầng Silver đọc để xử lý.
+\end{itemize}
+
+\subsubsection*{b) Thuật toán tính chênh lệch gia tăng}
+
+Sau khi batch mới được nạp vào \texttt{*\_tdy}, hệ thống thực hiện so
+sánh với \texttt{*\_pdy} để xác định sự thay đổi và ghi kết quả vào
+\texttt{*\_mns} với hai loại cờ:
+
+\begin{itemize}
+    \item \textbf{I (Insert):} Bản ghi xuất hiện trong \texttt{*\_tdy}
+          nhưng chưa tồn tại trong \texttt{*\_pdy}, đây là dữ liệu mới
+          lần đầu xuất hiện.
+    \item \textbf{U (Update):} Bản ghi có trong cả hai bảng nhưng có ít
+          nhất một cột thay đổi giá trị, phản ánh sự cập nhật từ phía
+          nguồn.
+\end{itemize}
+
+Hệ thống không sinh cờ \textbf{D (Delete)} trong chế độ chạy theo ngày.
+Nguyên nhân: khi lọc theo ngày, \texttt{*\_tdy} chỉ chứa các bản ghi
+có hoạt động trong ngày đó, không phải toàn bộ source. Một khách hàng
+vắng mặt hôm nay do không phát sinh giao dịch không đồng nghĩa với việc
+bị xóa khỏi hệ thống nguồn, nếu đánh cờ D sẽ khiến tầng Silver
+xóa nhầm hàng loạt bản ghi đang hoạt động.
+
+Sau khi tính xong change-set, \texttt{*\_tdy} được upsert vào
+\texttt{*\_pdy} để cập nhật snapshot lũy kế. Nhờ vậy, khi một khách
+hàng quay lại giao dịch sau nhiều ngày vắng, so sánh đúng với
+lần xuất hiện gần nhất và đánh cờ U chính xác thay vì nhầm thành I.
+
+\subsubsection*{c) Xử lý riêng cho dữ liệu giao dịch}
+
+Giao dịch là dữ liệu bất biến, một khi ghi nhận sẽ không bao giờ bị
+sửa hoặc xóa. Do đó toàn bộ bản ghi trong \texttt{transactions\_tdy}
+đều được đánh cờ \textbf{I} mà không cần so sánh với \texttt{*\_pdy}.
+Tầng Silver tự khử trùng lặp theo business key nên việc chạy lại cùng
+một ngày vẫn đảm bảo tính idempotent.
+
+\subsubsection*{d) Hai chế độ vận hành}
+
+Pipeline hỗ trợ hai chế độ chạy:
+
+\begin{itemize}
+    \item \textbf{Chế độ theo ngày:} Truyền tham số \texttt{--run-date
+          YYYY-MM-DD} để lọc dữ liệu theo ngày giao dịch, dùng cho lịch
+          chạy hằng ngày tự động qua Airflow.
+    \item \textbf{Chế độ backfill:} Không truyền tham số, hệ thống đọc
+          toàn bộ dữ liệu từ nguồn, dùng cho lần nạp dữ liệu đầu tiên
+          hoặc khi cần tái tạo lại toàn bộ tầng Bronze.
+\end{itemize}
+
+Các entity không có cột ngày (\texttt{users}, \texttt{cards},
+\texttt{mcc\_codes}) được lọc gián tiếp bằng cách join với bảng
+\texttt{transactions} theo \texttt{run\_date}, đảm bảo chỉ nạp các bản
+ghi thực sự có hoạt động trong ngày đó.
+
+
+\subsection{Biến đổi dữ liệu tầng Silver (Data Vault)}
+
+Tầng Silver tổ chức dữ liệu theo chuẩn Data Vault 2.0 gồm ba loại bảng:
+Hub lưu business key của từng thực thể, Link ghi nhận mối quan hệ giữa
+các Hub, Satellite lưu thuộc tính mô tả và lịch sử thay đổi. Mọi bản ghi
+đều mang trường \texttt{load\_datetime} và \texttt{record\_source} để đảm
+bảo khả năng truy vết nguồn gốc dữ liệu.
+
+\subsubsection*{a) Quy tắc sinh Hash Key}
+
+Hash Key là khóa kỹ thuật duy nhất đại diện cho mỗi business key trong
+Data Vault. Hệ thống sử dụng thuật toán MD5 áp dụng thống nhất qua macro
+dbt để đảm bảo kết quả nhất quán trên toàn bộ các model. Với Link cần
+kết hợp nhiều business key, hàm băm được áp dụng trên chuỗi nối các
+business key theo thứ tự cố định. Cách tiếp cận này cho phép tái tính
+lại Hash Key ở bất kỳ tầng nào mà không cần join ngược lên Hub.
+
+\subsubsection*{b) Mapping tầng Hub}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Mapping Bronze $\rightarrow$ Hub}
+\begin{tabular}{lllll}
+\hline
+\textbf{Bảng gốc} & \textbf{Trường nguồn} & \textbf{Quy tắc transform} & \textbf{Bảng đích} & \textbf{Trường đích} \\
+\hline
+users\_mns        & id          & MD5(id)            & hub\_customer    & hk\_customer    \\
+users\_mns        & id          & Giữ nguyên         & hub\_customer    & customer\_id    \\
+\hline
+cards\_mns        & id          & MD5(id)            & hub\_card        & hk\_card        \\
+cards\_mns        & id          & Giữ nguyên         & hub\_card        & card\_id        \\
+\hline
+transactions\_mns & id          & MD5(id)            & hub\_transaction & hk\_transaction \\
+transactions\_mns & id          & Giữ nguyên         & hub\_transaction & transaction\_id \\
+\hline
+mcc\_codes\_mns   & mcc\_id     & MD5(mcc\_id)       & hub\_mcc         & hk\_mcc         \\
+mcc\_codes\_mns   & mcc\_id     & Giữ nguyên         & hub\_mcc         & mcc\_id         \\
+\hline
+transactions\_tdy & merchant\_id & MD5(merchant\_id) & hub\_merchant    & hk\_merchant    \\
+transactions\_tdy & merchant\_id & Giữ nguyên        & hub\_merchant    & merchant\_id    \\
+\hline
+\end{tabular}
+\end{table}
+
+
+\subsubsection*{c) Mapping tầng Link}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Mapping Bronze $\rightarrow$ Link}
+\begin{tabular}{lllll}
+\hline
+\textbf{Bảng gốc} & \textbf{Trường nguồn} & \textbf{Quy tắc transform} & \textbf{Bảng đích} & \textbf{Trường đích} \\
+\hline
+transactions\_tdy & id, client\_id,        & \texttt{MD5(id || client\_id ||}     & link\_transaction & hk\_transaction\_link \\
+                  & card\_id, merchant\_id, & \texttt{card\_id || merchant\_id ||} &                   &                       \\
+                  & mcc                    & \texttt{mcc)}                         &                   &                       \\
+transactions\_tdy & id                     & \texttt{MD5(id)}                      & link\_transaction & hk\_transaction       \\
+transactions\_tdy & client\_id             & \texttt{MD5(client\_id)}              & link\_transaction & hk\_customer          \\
+transactions\_tdy & card\_id               & \texttt{MD5(card\_id)}                & link\_transaction & hk\_card              \\
+transactions\_tdy & merchant\_id           & \texttt{MD5(merchant\_id)}            & link\_transaction & hk\_merchant          \\
+transactions\_tdy & mcc                    & \texttt{MD5(mcc)}                     & link\_transaction & hk\_mcc               \\
+\hline
+cards\_tdy        & client\_id, id         & \texttt{MD5(client\_id || id)}  & link\_customer\_card & hk\_customer\_card \\
+cards\_tdy        & client\_id             & \texttt{MD5(client\_id)}        & link\_customer\_card & hk\_customer       \\
+cards\_tdy        & id                     & \texttt{MD5(id)}                & link\_customer\_card & hk\_card           \\
+\hline
+\end{tabular}
+\end{table}
+
+
+\subsubsection*{d) Mapping tầng Satellite}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Mapping Bronze $\rightarrow$ sat\_customer\_profile (SCD Type 2)}
+\begin{tabular}{lllll}
+\hline
+\textbf{Bảng gốc} & \textbf{Trường nguồn} & \textbf{Quy tắc transform} & \textbf{Bảng đích} & \textbf{Trường đích} \\
+\hline
+users\_mns   & id                 & MD5(id)                  & sat\_customer\_profile & hk\_customer        \\
+users\_tdy   & current\_age       & TRY\_CAST $\rightarrow$ INT          & sat\_customer\_profile & current\_age        \\
+users\_tdy   & retirement\_age    & TRY\_CAST $\rightarrow$ INT          & sat\_customer\_profile & retirement\_age     \\
+users\_tdy   & birth\_year        & TRY\_CAST $\rightarrow$ INT          & sat\_customer\_profile & birth\_year         \\
+users\_tdy   & birth\_month       & TRY\_CAST $\rightarrow$ INT          & sat\_customer\_profile & birth\_month        \\
+users\_tdy   & gender             & CAST $\rightarrow$ NVARCHAR(20)      & sat\_customer\_profile & gender              \\
+users\_tdy   & address            & CAST $\rightarrow$ NVARCHAR(255)     & sat\_customer\_profile & address             \\
+users\_tdy   & latitude           & CAST $\rightarrow$ NVARCHAR(20)      & sat\_customer\_profile & latitude            \\
+users\_tdy   & longitude          & CAST $\rightarrow$ NVARCHAR(20)      & sat\_customer\_profile & longitude           \\
+users\_tdy   & per\_capita\_income & TRY\_CAST $\rightarrow$ DECIMAL(12,2) & sat\_customer\_profile & per\_capita\_income \\
+users\_tdy   & yearly\_income     & TRY\_CAST $\rightarrow$ DECIMAL(12,2) & sat\_customer\_profile & yearly\_income      \\
+users\_tdy   & total\_debt        & TRY\_CAST $\rightarrow$ DECIMAL(12,2) & sat\_customer\_profile & total\_debt         \\
+users\_tdy   & credit\_score      & TRY\_CAST $\rightarrow$ INT          & sat\_customer\_profile & credit\_score       \\
+users\_tdy   & num\_credit\_cards & TRY\_CAST $\rightarrow$ INT          & sat\_customer\_profile & num\_credit\_cards  \\
+             & (tất cả cột trên) & MD5(nối chuỗi)           & sat\_customer\_profile & hashdiff            \\
+             & —                 & SYSUTCDATETIME()         & sat\_customer\_profile & effective\_from     \\
+             & —                 & Hằng số 9999-12-31       & sat\_customer\_profile & effective\_to       \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Mapping Bronze $\rightarrow$ sat\_card\_detail (SCD Type 2)}
+\begin{tabular}{lllll}
+\hline
+\textbf{Bảng gốc} & \textbf{Trường nguồn} & \textbf{Quy tắc transform} & \textbf{Bảng đích} & \textbf{Trường đích} \\
+\hline
+cards\_mns & id                    & MD5(id)                   & sat\_card\_detail & hk\_card                \\
+cards\_tdy & card\_brand           & CAST $\rightarrow$ NVARCHAR(50)       & sat\_card\_detail & card\_brand             \\
+cards\_tdy & card\_type            & CAST $\rightarrow$ NVARCHAR(50)       & sat\_card\_detail & card\_type              \\
+cards\_tdy & card\_number          & CAST $\rightarrow$ NVARCHAR(20)       & sat\_card\_detail & card\_number            \\
+cards\_tdy & expires               & TRY\_CAST $\rightarrow$ DATE          & sat\_card\_detail & expires                 \\
+cards\_tdy & cvv                   & CAST $\rightarrow$ NVARCHAR(10)       & sat\_card\_detail & cvv                     \\
+cards\_tdy & has\_chip             & CAST $\rightarrow$ NVARCHAR(10)       & sat\_card\_detail & has\_chip               \\
+cards\_tdy & num\_cards\_issued    & TRY\_CAST $\rightarrow$ INT           & sat\_card\_detail & num\_cards\_issued      \\
+cards\_tdy & credit\_limit         & TRY\_CAST $\rightarrow$ DECIMAL(12,2) & sat\_card\_detail & credit\_limit           \\
+cards\_tdy & acct\_open\_date      & TRY\_CAST $\rightarrow$ DATE          & sat\_card\_detail & acct\_open\_date        \\
+cards\_tdy & year\_pin\_last\_changed & TRY\_CAST $\rightarrow$ INT        & sat\_card\_detail & year\_pin\_last\_changed \\
+           & (tất cả cột trên)    & MD5(nối chuỗi)            & sat\_card\_detail & hashdiff                \\
+           & —                    & SYSUTCDATETIME()          & sat\_card\_detail & effective\_from         \\
+           & —                    & Hằng số 9999-12-31        & sat\_card\_detail & effective\_to           \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Mapping Bronze $\rightarrow$ sat\_transaction\_detail (SCD Type 1)}
+\begin{tabular}{lllll}
+\hline
+\textbf{Bảng gốc} & \textbf{Trường nguồn} & \textbf{Quy tắc transform} & \textbf{Bảng đích} & \textbf{Trường đích} \\
+\hline
+transactions\_tdy & id            & MD5(id)                    & sat\_transaction\_detail & hk\_transaction       \\
+transactions\_tdy & date          & TRY\_CONVERT $\rightarrow$ DATETIME    & sat\_transaction\_detail & transaction\_datetime \\
+transactions\_tdy & amount        & TRY\_CAST $\rightarrow$ DECIMAL(10,2)  & sat\_transaction\_detail & amount                \\
+transactions\_tdy & use\_chip     & CAST $\rightarrow$ NVARCHAR(50)        & sat\_transaction\_detail & use\_chip             \\
+transactions\_tdy & merchant\_city  & CAST $\rightarrow$ NVARCHAR(100)     & sat\_transaction\_detail & merchant\_city        \\
+transactions\_tdy & merchant\_state & CAST $\rightarrow$ NVARCHAR(50)      & sat\_transaction\_detail & merchant\_state       \\
+transactions\_tdy & zip           & CAST $\rightarrow$ NVARCHAR(10)        & sat\_transaction\_detail & zip                   \\
+transactions\_tdy & errors        & CAST $\rightarrow$ NVARCHAR(100)       & sat\_transaction\_detail & errors                \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Mapping Bronze $\rightarrow$ sat\_mcc\_detail (SCD Type 1)}
+\begin{tabular}{lllll}
+\hline
+\textbf{Bảng gốc} & \textbf{Trường nguồn} & \textbf{Quy tắc transform} & \textbf{Bảng đích} & \textbf{Trường đích} \\
+\hline
+mcc\_codes\_mns & mcc\_id     & MD5(mcc\_id)         & sat\_mcc\_detail & hk\_mcc      \\
+mcc\_codes\_tdy & description & CAST $\rightarrow$ NVARCHAR(255) & sat\_mcc\_detail & description  \\
+\hline
+\end{tabular}
+\end{table}
+
+
+\subsection{Biến đổi dữ liệu tầng Gold (Star Schema)}
+
+Tầng Gold tổng hợp dữ liệu từ các Hub, Link và Satellite của tầng Silver
+thành cấu trúc Star Schema phục vụ phân tích. Bên cạnh các trường ánh xạ
+trực tiếp, mỗi bảng bổ sung thêm các trường tính toán sẵn nhằm giảm tải
+logic xử lý cho công cụ báo cáo.
+
+\subsubsection*{a) Xây dựng bảng Dimension}
+
+\begin{table}[H]
+\centering
+\caption{Mapping Silver $\rightarrow$ dim\_date (sinh động, không có bảng nguồn)}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lllll}
+\hline
+\textbf{Bảng gốc} & \textbf{Trường nguồn} & \textbf{Quy tắc transform} & \textbf{Bảng đích} & \textbf{Trường đích} \\
+\hline
+Date spine & date\_day & FORMAT $\rightarrow$ YYYYMMDD $\rightarrow$ INT         & dim\_date & date\_key      \\
+Date spine & date\_day & Giữ nguyên                      & dim\_date & full\_date     \\
+Date spine & date\_day & YEAR()                          & dim\_date & year           \\
+Date spine & date\_day & DATEPART(quarter)               & dim\_date & quarter        \\
+Date spine & date\_day & MONTH()                         & dim\_date & month          \\
+Date spine & date\_day & DATENAME(month)                 & dim\_date & month\_name    \\
+Date spine & date\_day & DAY()                           & dim\_date & day\_of\_month \\
+Date spine & date\_day & DATEPART(weekday)               & dim\_date & day\_of\_week  \\
+Date spine & date\_day & DATENAME(weekday)               & dim\_date & day\_name      \\
+Date spine & date\_day & CASE weekday IN (1,7) $\rightarrow$ 1/0     & dim\_date & is\_weekend    \\
+\hline
+\end{tabular}
+}
+\end{table}
+
+\texttt{dim\_date} được sinh tự động bằng kỹ thuật cross join date-spine,
+tạo liên tục các ngày từ 2022-01-01 đến 3 năm sau ngày chạy mà không cần
+file seed hay bảng tham chiếu ngoài.
+
+\begin{table}[H]
+\centering
+\caption{Mapping Silver $\rightarrow$ dim\_customer}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lllll}
+\hline
+\textbf{Bảng gốc} & \textbf{Trường nguồn} & \textbf{Quy tắc transform} & \textbf{Bảng đích} & \textbf{Trường đích} \\
+\hline
+hub\_customer          & customer\_id              & Giữ nguyên                                    & dim\_customer & customer\_id           \\
+hub\_customer          & hk\_customer              & Giữ nguyên                                    & dim\_customer & hk\_customer           \\
+sat\_customer\_profile & gender                    & Giữ nguyên                                    & dim\_customer & gender                 \\
+sat\_customer\_profile & address                   & Giữ nguyên                                    & dim\_customer & address                \\
+sat\_customer\_profile & yearly\_income            & Giữ nguyên                                    & dim\_customer & yearly\_income         \\
+sat\_customer\_profile & credit\_score             & Giữ nguyên                                    & dim\_customer & credit\_score          \\
+sat\_customer\_profile & current\_age              & Giữ nguyên                                    & dim\_customer & current\_age           \\
+sat\_customer\_profile & retirement\_age           & Giữ nguyên                                    & dim\_customer & retirement\_age        \\
+sat\_customer\_profile & birth\_year               & Giữ nguyên                                    & dim\_customer & birth\_year            \\
+sat\_customer\_profile & birth\_month              & Giữ nguyên                                    & dim\_customer & birth\_month           \\
+sat\_customer\_profile & latitude                  & TRY\_CAST $\rightarrow$ DECIMAL(10,6)                     & dim\_customer & latitude               \\
+sat\_customer\_profile & longitude                 & TRY\_CAST $\rightarrow$ DECIMAL(10,6)                     & dim\_customer & longitude              \\
+sat\_customer\_profile & per\_capita\_income       & Giữ nguyên                                    & dim\_customer & per\_capita\_income    \\
+sat\_customer\_profile & total\_debt               & Giữ nguyên                                    & dim\_customer & total\_debt            \\
+sat\_customer\_profile & num\_credit\_cards        & Giữ nguyên                                    & dim\_customer & num\_credit\_cards     \\
+sat\_customer\_profile & total\_debt, yearly\_income & total\_debt / NULLIF(yearly\_income, 0)     & dim\_customer & debt\_to\_income\_ratio \\
+sat\_customer\_profile & yearly\_income            & CASE: $<$30k/60k/100k $\rightarrow$ Low/Medium/High/Premium & dim\_customer & income\_segment        \\
+sat\_customer\_profile & credit\_score             & CASE: $\geq$750/670/580 $\rightarrow$ Excellent/Good/Fair/Poor & dim\_customer & credit\_risk\_tier     \\
+sat\_customer\_profile & retirement\_age, current\_age & retirement\_age - current\_age            & dim\_customer & years\_to\_retirement  \\
+\hline
+\end{tabular}
+}
+\end{table}
+
+Chỉ lấy record có \texttt{effective\_to = 9999-12-31} từ Satellite (trạng
+thái hiện tại), đảm bảo mỗi khách hàng chỉ có một dòng trong bảng chiều.
+
+\begin{table}[H]
+\centering
+\caption{Mapping Silver $\rightarrow$ dim\_card}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lllll}
+\hline
+\textbf{Bảng gốc} & \textbf{Trường nguồn} & \textbf{Quy tắc transform} & \textbf{Bảng đích} & \textbf{Trường đích} \\
+\hline
+hub\_card          & card\_id                  & Giữ nguyên                                            & dim\_card & card\_id                 \\
+hub\_card          & hk\_card                  & Giữ nguyên                                            & dim\_card & hk\_card                 \\
+hub\_customer      & customer\_id              & Denormalize qua link\_customer\_card                  & dim\_card & customer\_id             \\
+sat\_card\_detail  & card\_brand               & Giữ nguyên                                            & dim\_card & card\_brand              \\
+sat\_card\_detail  & card\_type                & Giữ nguyên                                            & dim\_card & card\_type               \\
+sat\_card\_detail  & credit\_limit             & Giữ nguyên                                            & dim\_card & credit\_limit            \\
+sat\_card\_detail  & expires                   & Giữ nguyên                                            & dim\_card & expires                  \\
+sat\_card\_detail  & has\_chip                 & Giữ nguyên                                            & dim\_card & has\_chip                \\
+sat\_card\_detail  & num\_cards\_issued        & Giữ nguyên                                            & dim\_card & num\_cards\_issued       \\
+sat\_card\_detail  & acct\_open\_date          & Giữ nguyên                                            & dim\_card & acct\_open\_date         \\
+sat\_card\_detail  & year\_pin\_last\_changed  & Giữ nguyên                                            & dim\_card & year\_pin\_last\_changed \\
+sat\_card\_detail  & acct\_open\_date          & DATEDIFF(YEAR, acct\_open\_date, GETDATE())           & dim\_card & card\_age\_years         \\
+sat\_card\_detail  & year\_pin\_last\_changed  & YEAR(GETDATE()) - year\_pin\_last\_changed            & dim\_card & pin\_age\_years          \\
+\hline
+\end{tabular}
+}
+\end{table}
+
+Trường \texttt{card\_number} và \texttt{cvv} bị loại bỏ ở tầng Gold do
+yêu cầu bảo mật dữ liệu thẻ (PCI DSS).
+
+\begin{table}[H]
+\centering
+\caption{Mapping Silver $\rightarrow$ dim\_merchant}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lllll}
+\hline
+\textbf{Bảng gốc} & \textbf{Trường nguồn} & \textbf{Quy tắc transform} & \textbf{Bảng đích} & \textbf{Trường đích} \\
+\hline
+hub\_merchant            & merchant\_id    & Giữ nguyên                  & dim\_merchant & merchant\_id    \\
+hub\_merchant            & hk\_merchant    & Giữ nguyên                  & dim\_merchant & hk\_merchant    \\
+sat\_transaction\_detail & merchant\_city  & Lấy từ giao dịch gần nhất   & dim\_merchant & merchant\_city  \\
+sat\_transaction\_detail & merchant\_state & Lấy từ giao dịch gần nhất   & dim\_merchant & merchant\_state \\
+sat\_transaction\_detail & zip             & Lấy từ giao dịch gần nhất   & dim\_merchant & zip             \\
+\hline
+\end{tabular}
+}
+\end{table}
+
+\texttt{dim\_merchant} không có Satellite riêng ở tầng Silver. Thông tin
+địa điểm được suy ra từ \texttt{sat\_transaction\_detail}, lấy bản ghi
+giao dịch gần nhất theo thời gian thông qua hàm \texttt{ROW\_NUMBER()}.
+
+\begin{table}[H]
+\centering
+\caption{Mapping Silver $\rightarrow$ dim\_mcc}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lllll}
+\hline
+\textbf{Bảng gốc} & \textbf{Trường nguồn} & \textbf{Quy tắc transform} & \textbf{Bảng đích} & \textbf{Trường đích} \\
+\hline
+hub\_mcc        & mcc\_id      & Giữ nguyên & dim\_mcc & mcc\_id          \\
+hub\_mcc        & hk\_mcc      & Giữ nguyên & dim\_mcc & hk\_mcc          \\
+sat\_mcc\_detail & description & Giữ nguyên & dim\_mcc & mcc\_description \\
+\hline
+\end{tabular}
+}
+\end{table}
+
+\subsubsection*{b) Xây dựng bảng Fact}
+
+\begin{table}[H]
+\centering
+\caption{Mapping Silver $\rightarrow$ fact\_transaction}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lllll}
+\hline
+\textbf{Bảng gốc} & \textbf{Trường nguồn} & \textbf{Quy tắc transform} & \textbf{Bảng đích} & \textbf{Trường đích} \\
+\hline
+hub\_transaction         & transaction\_id       & Giữ nguyên                               & fact\_transaction & transaction\_id       \\
+sat\_transaction\_detail & transaction\_datetime & FORMAT $\rightarrow$ YYYYMMDD $\rightarrow$ INT (FK dim\_date)    & fact\_transaction & date\_key             \\
+hub\_customer            & customer\_id          & Giữ nguyên (FK dim\_customer)            & fact\_transaction & customer\_id          \\
+hub\_card                & card\_id              & Giữ nguyên (FK dim\_card)                & fact\_transaction & card\_id              \\
+hub\_merchant            & merchant\_id          & Giữ nguyên (FK dim\_merchant)            & fact\_transaction & merchant\_id          \\
+hub\_mcc                 & mcc\_id               & Giữ nguyên (FK dim\_mcc)                 & fact\_transaction & mcc\_id               \\
+sat\_transaction\_detail & transaction\_datetime & Giữ nguyên                               & fact\_transaction & transaction\_datetime \\
+sat\_transaction\_detail & amount                & Giữ nguyên                               & fact\_transaction & amount                \\
+sat\_transaction\_detail & use\_chip             & Giữ nguyên                               & fact\_transaction & use\_chip             \\
+sat\_transaction\_detail & merchant\_city        & Giữ nguyên                               & fact\_transaction & merchant\_city        \\
+sat\_transaction\_detail & merchant\_state       & Giữ nguyên                               & fact\_transaction & merchant\_state       \\
+sat\_transaction\_detail & zip                   & Giữ nguyên                               & fact\_transaction & zip                   \\
+sat\_transaction\_detail & errors                & Giữ nguyên                               & fact\_transaction & errors                \\
+sat\_transaction\_detail & errors                & CASE: errors không rỗng $\rightarrow$ 1, còn lại $\rightarrow$ 0 & fact\_transaction & has\_error            \\
+sat\_transaction\_detail & use\_chip             & CASE: = 'Chip Transaction' $\rightarrow$ 1, còn lại $\rightarrow$ 0 & fact\_transaction & is\_chip\_used     \\
+\hline
+\end{tabular}
+}
+\end{table}
+
+Bảng Fact sử dụng chiến lược nạp \texttt{delete+insert} theo ngày chạy,
+đảm bảo tính idempotent khi pipeline chạy lại cùng một ngày. Khóa ngoại
+\texttt{date\_key} được tính bằng cách định dạng \texttt{transaction\_datetime}
+thành số nguyên dạng \texttt{YYYYMMDD} để join trực tiếp với \texttt{dim\_date}.
+
+
+
+
+\section{Quy trình xây dựng Pipeline dữ liệu phi cấu trúc (OCR)}
+
+
+% Bạn có thể viết một đoạn mở đầu ngắn (Intro) cho cả phần 4.x ở đây trước khi đi vào các tiểu mục.
+
+
+
+\subsection{Tiền xử lý ảnh }
+% Trình bày các kỹ thuật OpenCV đã dùng (cắt viền, chỉnh nghiêng, khử nhiễu, cân bằng sáng...).
+
+
+
+Mục tiêu: Đưa ảnh chụp thực tế (xiên, lệch góc, sai hướng) về dạng tài liệu thẳng, chuẩn kích thước trước khi OCR.
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[
+        >=Stealth,
+        node distance=0.7cm,
+        % Style cho khối Đầu vào / Đầu ra
+        iobox/.style={rectangle, rounded corners=3pt, draw=gray!70, fill=gray!10, thick, text width=10.5cm, align=center, inner sep=8pt, font=\bfseries},
+        % Style cho khối Xử lý
+        procbox/.style={rectangle, rounded corners=3pt, draw=blue!60, fill=blue!5, thick, text width=10.5cm, align=left, inner sep=8pt},
+        % Style cho mũi tên
+        arr/.style={->, thick, draw=gray!80}
+    ]
+
+    % --- Khối đầu vào ---
+    \node[iobox] (input) {Ảnh gốc};
+
+    % --- Các bước xử lý ---
+    \node[procbox, below=of input] (step1) {
+        \textbf{Deskew (Chỉnh nghiêng)} \\
+        \footnotesize Phát hiện góc xiên qua Hough Lines, xoay ảnh về góc thẳng.
+    };
+
+    \node[procbox, below=of step1] (step2) {
+        \textbf{Document Warp (Căn phẳng phối cảnh)} \\
+        \footnotesize Tìm tọa độ 4 góc tài liệu, áp dụng biến đổi phối cảnh 
+    };
+
+    \node[procbox, below=of step2] (step3) {
+        \textbf{Orientation (Căn chỉnh chiều)} \\
+        \footnotesize Xoay ảnh về đúng chiều nhìn (Ví dụ CCCD: Dựa vào vị trí dải màu xanh đặc trưng).
+    };
+
+    \node[procbox, below=of step3] (step4) {
+        \textbf{Width Norm (Chuẩn hóa kích thước)} \\
+        \footnotesize Đưa ảnh về một độ rộng tiêu chuẩn cố định (CCCD: 1000px / Sổ tiết kiệm: 1200px).
+    };
+
+    % --- Khối đầu ra ---
+    \node[iobox, below=of step4] (output) {Ảnh chuẩn hóa};
+
+    % --- Vẽ mũi tên kết nối ---
+    \foreach \a/\b in {input/step1, step1/step2, step2/step3, step3/step4, step4/output}
+    { \draw[arr] (\a) -- (\b); }
+
+    \end{tikzpicture}
+    \caption{Quy trình chuẩn hóa hình học trong tiền xử lý ảnh}
+    \label{fig:image-geometry-normalization}
+\end{figure}
+Sau bước này, mọi ảnh đầu vào đều là hình chữ nhật thẳng, đúng hướng, cùng tỷ lệ — tọa độ vùng trích xuất mới có ý nghĩa nhất quán.
+
+Để minh họa trực quan cho quy trình trên, dưới đây là chi tiết kết quả hình ảnh đạt được sau từng bước biến đổi hình học:
+
+\subsubsection*{a) Chỉnh nghiêng ảnh (Deskew)}
+\label{sssec:deskew}
+
+Ảnh CCCD chụp trong thực tế thường bị nghiêng một góc nhỏ so với phương ngang. Việc chỉnh nghiêng dựa trên một quan sát: thẻ CCCD chứa nhiều đường thẳng dài song song với cạnh thẻ (viền thẻ, mép dải họa tiết, các dòng chữ). Nếu đo được góc nghiêng của các đường thẳng này so với phương ngang thì cũng xác định được góc nghiêng của cả tấm thẻ, và chỉ cần xoay ngược lại để sửa. Quy trình gồm ba giai đoạn: (1)~ước lượng góc nghiêng, (2)~xoay ảnh, và (3)~kiểm chứng kết quả.
+
+\paragraph{Giai đoạn 1: Ước lượng góc nghiêng:}
+Thay vì dò đường thẳng trên toàn ảnh (dễ nhiễu bởi chữ, hoa văn và nền), hệ thống ưu tiên sử dụng dải màu xanh dương đặc trưng của CCCD. Ảnh được chuyển sang không gian màu HSV và lọc theo ngưỡng kênh Hue:
+\begin{equation}
+  85 \le H \le 135,
+\end{equation}
+tương ứng với dải màu xanh dương. Cạnh của vùng xanh luôn song song với cạnh thẻ nên là mốc đo góc ít nhiễu. Trường hợp ảnh không có đủ vùng xanh (bạc màu, chói sáng), phương án dự phòng là dò trên toàn ảnh xám đã làm mờ Gaussian, nhưng yêu cầu đoạn thẳng phải đủ dài (tối thiểu 25\% cạnh ngắn của ảnh) để chỉ bắt được viền thẻ thay vì nét chữ.
+
+Trên vùng đã chọn, hệ thống áp dụng thuật toán dò biên Canny rồi biến đổi Hough xác suất (Probabilistic Hough Transform) để thu về tập các đoạn thẳng, mỗi đoạn cho bởi hai đầu mút $(x_1, y_1)$ và $(x_2, y_2)$. Góc của mỗi đoạn so với phương ngang được tính theo:
+\begin{equation}
+  \theta = \arctan\!\left(\frac{y_2 - y_1}{x_2 - x_1}\right) \cdot \frac{180}{\pi}.
+\end{equation}
+
+Vì trên thẻ có cả đường ngang lẫn đường dọc --- hai loại này lệch nhau $90^\circ$ nhưng đều phản ánh cùng một độ nghiêng --- nên góc được quy gọn về khoảng $[-45^\circ, 45^\circ]$:
+\begin{equation}
+  \theta' =
+  \begin{cases}
+    \theta - 90^\circ & \text{nếu } \theta > 45^\circ, \\
+    \theta + 90^\circ & \text{nếu } \theta < -45^\circ, \\
+    \theta            & \text{còn lại.}
+  \end{cases}
+\end{equation}
+Sau khi quy gọn, một đường dọc nghiêng $88^\circ$ và một đường ngang nghiêng $-2^\circ$ đều cho cùng kết quả $-2^\circ$. Các góc có $|\theta'| > 30^\circ$ bị loại, vì độ nghiêng lớn cỡ đó không còn là ``nghiêng nhẹ'' mà là ảnh bị xoay $90^\circ$, được xử lý ở bước chuẩn hóa hướng riêng (dựa vào vị trí dải xanh để xoay $90/180/270^\circ$).
+
+Góc nghiêng của ảnh được tổng hợp bằng trung vị có trọng số (weighted median) của các góc, với trọng số là chiều dài đoạn thẳng:
+\begin{equation}
+  w_i = \sqrt{(x_2 - x_1)^2 + (y_2 - y_1)^2}.
+\end{equation}
+Việc lấy trọng số theo chiều dài khiến các đoạn dài (viền thẻ) có ảnh hưởng lớn hơn các nét chữ, hoa văn ngắn; còn phép trung vị bền vững trước ngoại lệ hơn phép trung bình -- vài đoạn nhiễu lệch góc hẳn sẽ không kéo lệch kết quả.
+
+\paragraph{Giai đoạn 2: Xoay ảnh không mất góc:}
+Nếu góc ước lượng nhỏ hơn ngưỡng $0{,}75^\circ$ thì ảnh được giữ nguyên, vì xoay một góc quá nhỏ chỉ làm mờ chữ do nội suy. Khi xoay ảnh quanh tâm một góc $\alpha$, nếu giữ nguyên kích thước khung ảnh thì bốn góc của thẻ sẽ bị cắt mất; do đó khung ảnh đầu ra được mở rộng theo:
+\begin{equation}
+  W' = H \cdot |\sin\alpha| + W \cdot |\cos\alpha|, \qquad H' = H \cdot |\cos\alpha| + W \cdot |\sin\alpha|,
+\end{equation}
+với $(W, H)$ là kích thước ảnh gốc. Ma trận xoay affine đồng thời được tịnh tiến để tâm ảnh cũ trùng với tâm khung mới; phần nền lộ ra sau khi xoay được tô màu trắng, và phép nội suy bicubic được dùng để giữ độ sắc nét của chữ.
+
+\paragraph{Giai đoạn 3: Kiểm chứng bằng góc dư:}
+Góc ước lượng có thể sai dấu (không phân biệt được thẻ nghiêng trái hay phải trong một số trường hợp nhiễu). Thay vì tin tưởng kết quả đo, thuật toán tạo ra ba ứng viên: ảnh gốc (không xoay), ảnh xoay góc $+\alpha$ và ảnh xoay góc $-\alpha$. Với mỗi ứng viên, toàn bộ phép ước lượng góc ở Giai đoạn~1 được chạy lại để đo góc nghiêng còn dư (residual), rồi chọn ứng viên có góc dư nhỏ nhất:
+\begin{equation}
+  \text{kết quả} = \operatorname*{arg\,min}_{k \,\in\, \{0,\, +\alpha,\, -\alpha\}} \left| \theta_{\mathrm{residual}}(k) \right|.
+\end{equation}
+Cơ chế ``thử cả hai chiều rồi đo lại'' này đảm bảo: nếu phép đo ban đầu đúng thì ảnh được sửa thẳng; nếu phép đo sai (sai dấu hoặc sai hẳn) thì ảnh gốc vẫn được giữ nguyên --- thuật toán không bao giờ làm ảnh xấu đi
+
+\begin{figure}[H]
+    \centering
+
+    \includegraphics[width=0.5\textwidth]{img4/id_card_scan.jpg} 
+    \caption{Ảnh trước khi xử lý Deskew}
+    \label{fig:before-deskew}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+
+    \includegraphics[width=0.5\textwidth]{img4/sau deskew.png} 
+    \caption{Ảnh sau xử lý deskew}
+    \label{fig:after-deskew}
+\end{figure}
+
+\subsubsection*{b) Căn phẳng phối cảnh (Document Warp)}
+\label{sssec:perspective-warp}
+
+Ảnh CCCD chụp trong thực tế thường xuyên bị méo phối cảnh do góc nghiêng của thiết bị chụp --- hình dáng thẻ bị biến dạng thành hình thang thay vì hình chữ nhật. Bước tiền xử lý này có nhiệm vụ xác định chính xác tọa độ bốn góc của thẻ trên ảnh, từ đó thực hiện phép chiếu hình học để ``kéo phẳng'' tài liệu về đúng chuẩn chữ nhật thẳng đứng. Khâu này đóng vai trò then chốt giúp các vùng quan tâm (ROI) luôn khớp vị trí khi đưa vào mô hình trích xuất OCR.
+
+\paragraph{Giai đoạn 1: Xác định tọa độ bốn góc thẻ:}
+Hệ thống áp dụng thuật toán dò biên Canny và trích xuất các dải contour khép kín. Mỗi contour được xấp xỉ thành một đa giác hình học. Một contour sẽ được hệ thống phân loại là khung bao thẻ nếu nó xấp xỉ thành đúng bốn đỉnh và thỏa mãn đồng thời hai điều kiện:
+\begin{itemize}
+    \item Diện tích bao phủ chiếm ít nhất $25\%$ tổng diện tích bức ảnh (nhằm loại trừ các tứ giác nhiễu nhỏ nằm lẫn trong nền).
+    \item Tỷ lệ khung hình (cạnh dài chia cạnh ngắn) nằm trong khoảng $[1{,}25;\; 1{,}95]$. Biên độ này được thiết lập dựa trên chuẩn kích thước vật lý của thẻ ID-1 quốc tế (tỷ lệ ISO $\approx 1{,}586$).
+\end{itemize}
+Trong trường hợp không có contour nào đạt chuẩn bốn đỉnh, thuật toán sẽ kích hoạt phương án dự phòng bằng cách tính toán hình chữ nhật bao có diện tích nhỏ nhất của contour lớn nhất.
+
+\begin{figure}[H]
+    \centering
+
+    \includegraphics[width=0.5\textwidth]{img4/viền.png} 
+    \caption{Xác định khung viền thẻ}
+    \label{fig:card-border-detection}
+\end{figure}
+
+\paragraph{Giai đoạn 2: Biến đổi phối cảnh: }
+Sau khi thu thập được tọa độ bốn góc thực tế của thẻ, ký hiệu là $\{P_{\text{TL}}, P_{\text{TR}}, P_{\text{BR}}, P_{\text{BL}}\}$, hệ thống thiết lập một ma trận biến đổi phối cảnh $\mathbf{H}$ kích thước $3 \times 3$. Ma trận này có nhiệm vụ ánh xạ tuyến tính bốn góc thực tế về bốn góc vuông của một ảnh đích có kích thước $W_{\text{out}} \times H_{\text{out}}$ (với bề ngang chuẩn $W_{\text{out}} = 1\,000\,\text{px}$):
+\begin{equation}
+    \begin{pmatrix}P_{\text{TL}} \\ P_{\text{TR}} \\ P_{\text{BR}} \\ P_{\text{BL}}\end{pmatrix}
+    \;\xrightarrow{\mathbf{H}}\;
+    \begin{pmatrix}(0,\,0) \\ (W_{\text{out}}-1,\,0) \\ (W_{\text{out}}-1,\,H_{\text{out}}-1) \\ (0,\,H_{\text{out}}-1)\end{pmatrix}.
+\end{equation}
+Toàn bộ dữ liệu điểm ảnh sau đó được chiếu qua ma trận $\mathbf{H}$, trả về một bức ảnh thẻ phẳng phiu như được chụp trực diện từ trên xuống. Nếu thuật toán thất bại trong việc tìm bốn góc hợp lệ ở khâu trước, phép biến đổi này sẽ bị bỏ qua và ảnh chỉ được thu phóng bề ngang về mức tiêu chuẩn.
+\begin{figure}[H]
+    \centering
+
+    \includegraphics[width=0.5\textwidth]{img4/sau phát hiện khung.png} 
+    \caption{Ảnh sau biến đổi phối cảnh}
+    \label{fig:after-perspective-transform}
+\end{figure}
+\subsubsection*{c) Căn chỉnh chiều ảnh (Orientation)}
+\label{sssec:orientation}
+
+Sau khi warp phẳng, thẻ có thể vẫn đang nằm ngang hoặc lộn ngược nếu ảnh gốc được chụp xoay. Bước này có nhiệm vụ xác định đúng chiều mặt trước của thẻ và tự động xoay ảnh về đúng hướng.
+
+Ý tưởng thuật toán dựa trên một đặc điểm nhận diện hình ảnh cố định của CCCD: dải màu xanh dương (chứa quốc huy và họa tiết header) luôn nằm ở cạnh trên của mặt trước thẻ. Do đó, nếu định vị được cạnh nào của ảnh đang tập trung nhiều pixel màu xanh nhất, ta có thể suy ra hướng hiện tại của thẻ và góc cần bù để xoay cho đúng.
+
+Ảnh được chuyển đổi sang không gian màu HSV, sau đó phân tách để lấy ra các điểm ảnh thuộc dải phổ màu xanh dương ($85 \le H \le 135$). Với mỗi cạnh trong bốn cạnh của ảnh, hệ thống tính toán tỷ lệ điểm xanh xuất hiện trong vùng không gian bao phủ 22\% chiều rộng (hoặc chiều cao) tính từ mép cạnh đó đổ vào trong. 
+
+Cạnh nào có mật độ điểm xanh cao nhất và đồng thời vượt qua ngưỡng tối thiểu $3\%$ sẽ được xác định là cạnh chứa dải header; từ đó suy ra góc cần xoay để đưa dải xanh về phía trên:
+\begin{equation}
+  \theta_{\text{xoay}} =
+  \begin{cases}
+    0^\circ   & \text{nếu dải xanh ở cạnh trên (ảnh đã đúng chiều),} \\
+    180^\circ & \text{nếu dải xanh ở cạnh dưới (ảnh bị lộn ngược),} \\
+    90^\circ  & \text{nếu dải xanh ở cạnh trái (xoay cùng chiều kim đồng hồ),} \\
+    -90^\circ & \text{nếu dải xanh ở cạnh phải (xoay ngược chiều kim đồng hồ).}
+  \end{cases}
+\end{equation}
+
+Trong trường hợp không có vùng biên nào đạt ngưỡng mật độ điểm xanh $3\%$ (thường xảy ra đối với ảnh chụp bản sao đen trắng, thẻ bị chói sáng mất màu hoặc là mặt sau của thẻ), thuật toán sẽ bỏ qua thao tác này và giữ nguyên hướng ban đầu của ảnh.
+
+Kết thúc bước định hướng, hình ảnh thẻ đã hoàn toàn ngay ngắn, đúng chiều trực diện và sẵn sàng chuyển sang khâu chuẩn hóa kích thước trước khi đi vào mô hình trích xuất văn bản OCR.
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[
+        >=Stealth, 
+        node distance=2.5cm % Khoảng cách giữa 2 ảnh để lấy chỗ vẽ mũi tên
+    ]
+        
+        % --- Ảnh 1: Trước khi xoay ---
+        \node[inner sep=0pt] (img1) {
+            % Lưu ý: Hãy đảm bảo tên file trong thư mục img4 là truoc_xoay.png hoặc truoc_xoay.jpg
+            \includegraphics[height=5.5cm]{img4/trước xoay.png} 
+        };
+        \node[below=0.2cm of img1, font=\small] {a) Ảnh thẻ bị ngang};
+
+        % --- Ảnh 2: Sau khi xoay ---
+        \node[inner sep=0pt, right=of img1] (img2) {
+            % Lưu ý: Hãy đảm bảo tên file trong thư mục img4 là sau_xoay.png hoặc sau_xoay.jpg
+            \includegraphics[height=5.5cm]{img4/sau xoay.png} 
+        };
+        \node[below=0.2cm of img2, font=\small] {b) Ảnh thẻ sau khi chuẩn hóa};
+
+        % --- Mũi tên chỉ chiều biến đổi ---
+        \draw[->, line width=1.5pt, draw=blue!70] 
+            (img1.east) -- 
+            node[above, font=\footnotesize\bfseries, text=black] {Xoay $270^\circ$} 
+            (img2.west);
+            
+    \end{tikzpicture}
+    \caption{Kết quả tự động nhận diện dải màu xanh và căn chỉnh chiều ảnh}
+    \label{fig:orientation_result}
+\end{figure}
+
+\subsubsection*{d) Chuẩn hóa kích thước ảnh (Width Normalization)}
+\label{sssec:width-norm}
+
+Ảnh CCCD đầu vào trong thực tế có thể được thu thập từ nhiều nguồn thiết bị khác nhau (điện thoại di động, máy quét chuyên dụng, webcam văn phòng\ldots) dẫn đến sự phân mảnh lớn về độ phân giải. Sự chênh lệch kích thước này gây ra trở ngại trực tiếp cho bước trích xuất: các vùng quan tâm (Region of Interest - ROI) chứa thông tin nghiệp vụ thường được neo dựa trên các tọa độ khuôn mẫu cố định. Nếu không có sự đồng nhất về mặt kích thước, việc cắt ảnh (crop) theo tọa độ pixel sẽ bị sai lệch nghiêm trọng, dẫn đến hiện tượng mất chữ hoặc cắt lẹm sang các vùng nhiễu.
+
+Để giải quyết triệt để vấn đề này, hệ thống áp dụng kỹ thuật chuẩn hóa kích thước, đưa toàn bộ ảnh thẻ về chung một bề rộng tiêu chuẩn $W_{\text{out}} = 1000\,\text{px}$. Chiều cao $H_{\text{out}}$ được tính toán tự động dựa trên tỷ lệ khung hình gốc nhằm đảm bảo thẻ không bị méo lệch vật lý:
+\begin{equation}
+    H_{\text{out}} = \left\lfloor H_{\text{gốc}} \times \frac{W_{\text{out}}}{W_{\text{gốc}}} \right\rfloor
+\end{equation}
+
+
+\subsubsection*{e) Xác định vùng ROI}
+\label{sssec:roi}
+
+Mọi thẻ CCCD có cùng bố cục in theo chuẩn nhà nước, và sau khi ảnh đã
+được warp phẳng và chuẩn hóa về bề rộng 1000\,px, vị trí tương đối của
+từng trường là hằng số trên mọi ảnh. Nhờ đó, tọa độ các vùng ROI chỉ cần
+xác định một lần từ một ảnh mẫu đã chuẩn hóa: quan sát vị trí
+từng trường, đo tọa độ pixel rồi quy về tỷ lệ so với kích thước ảnh:
+\begin{equation}
+  x_{\text{ratio}} = \frac{x_{\text{px}}}{W}, \qquad
+  y_{\text{ratio}} = \frac{y_{\text{px}}}{H}.
+\end{equation}
+Dùng tỷ lệ thay vì pixel tuyệt đối giúp ROI tự co giãn theo chiều cao
+thực tế của từng ảnh, vì chiều cao có thể dao động nhẹ dù chiều rộng đã
+cố định ở 1000\,px.
+
+\begin{figure}[H]
+    \centering
+
+    \includegraphics[width=0.5\textwidth]{img4/xác định vùng ROI.png} 
+    \caption{Thẻ sau khi xử lý xác định các vùng ROI}
+    \label{fig:roi-region-detection}
+\end{figure}
+
+
+
+\subsection{Tăng cường chất lượng hình ảnh}
+
+Từ ảnh thẻ đã chuẩn hóa hình học, hệ thống tạo thêm năm biến thể tăng
+cường theo chuỗi tuần tự, mỗi bước xây dựng trên kết quả của bước trước:
+
+\begin{itemize}
+  \item \textbf{Grayscale}: chuyển ảnh màu về ảnh xám, loại bỏ nhiễu màu
+        không liên quan đến văn bản, đồng thời là đầu vào cho các bước tiếp theo.
+  \item \textbf{CLAHE}: áp dụng cân bằng độ tương phản cục bộ theo lưới
+        ô nhỏ lên ảnh xám, giúp chữ trên nền loang lổ hoặc thiếu sáng
+        trở nên rõ ràng hơn.
+  \item \textbf{Khử nhiễu}: lọc nhiễu hạt trên ảnh CLAHE bằng phương pháp
+        Fast Non-Local Means, giữ nguyên nét chữ trong khi làm mịn các
+        vùng nền.
+  \item \textbf{Làm sắc nét}: tăng cường biên ký tự bằng bộ lọc Laplacian
+        trên ảnh đã khử nhiễu, giúp OCR phân biệt các nét gần nhau rõ hơn.
+  \item \textbf{Nhị phân hóa thích nghi}: chuyển ảnh đã làm sắc nét về
+        ảnh đen trắng bằng ngưỡng Gaussian thích nghi cục bộ, tạo ra
+        văn bản trắng trên nền đen hoàn toàn — biến thể phù hợp nhất
+        khi nền ảnh không đồng đều.
+\end{itemize}
+
+Năm biến thể này không thay thế ảnh gốc trong luồng chính.
+PaddleOCR vẫn chạy trên ảnh màu đầy đủ vì ảnh màu giữ nhiều thông tin
+nhất. Các biến thể tăng cường chỉ được đưa vào OCR khi một trường cụ thể
+thất bại ở bước trích xuất, lúc đó vùng ROI của trường đó được cắt ra từ
+ảnh CLAHE để OCR lại. Riêng trường họ tên — vốn dễ bị watermark che và
+nhạy cảm với chất lượng ảnh — sẽ lần lượt thử trên tất cả các biến thể,
+ưu tiên kết quả hợp lệ về mặt nghiệp vụ trước, điểm tin cậy OCR sau.
+
+
+\begin{figure}[H]
+    \centering
+
+    \includegraphics[width=1\textwidth]{img4/tăng cường chất lượng.png} 
+    \caption{Ảnh sau tăng cường chất lượng}
+    \label{fig:image-quality-enhancement}
+\end{figure}
+
+
+
+
+
+
+
+\subsection{Trích xuất văn bản bằng PaddleOCR}
+Hệ thống dùng PaddleOCR (PP-OCRv3) để trích xuất 9 trường thông tin theo
+hai chế độ:
+
+\textbf{Chế độ chính: Neo theo nhãn:} OCR toàn ảnh, tìm box khớp với
+nhãn in sẵn trên thẻ (``FULL NAME'', ``ID NO''\ldots), rồi lấy text của
+box nằm bên phải cùng dòng làm giá trị.
+
+\textbf{Chế độ dự phòng: Cắt ROI:} Trường nào chưa hợp lệ thì cắt
+thẳng vùng tọa độ cố định trên ảnh tăng cường rồi OCR lại; trường
+họ tên thử thêm nhiều biến thể ảnh, ưu tiên kết quả hợp lệ trước, điểm
+OCR sau.
+
+\begin{figure}[H]
+    \centering
+
+    \includegraphics[width=0.8\textwidth]{img4/khung xanh dương.png} 
+    \caption{Các text box được phát hiện bằng chế độ dự phòng cắt ROI}
+    \label{fig:roi-text-box-detection}
+\end{figure}
+
+\subsection{Hậu xử lý và làm sạch dữ liệu}
+
+Văn bản thô trả về từ OCR thường chứa nhiễu ký tự, khoảng trắng thừa
+hoặc ký tự bị nhận dạng sai. Hệ thống áp dụng chuỗi bốn bước hậu xử lý
+để chuyển kết quả OCR thô thành dữ liệu có cấu trúc và nhất quán.
+
+\textbf{Bước 1: Làm sạch văn bản cơ bản}
+
+Toàn bộ chuỗi văn bản được chuẩn hóa Unicode về dạng NFC để đảm bảo
+so khớp nhất quán. Các ký tự gây nhiễu phổ biến được sửa tự động, điển
+hình là thay thế ký tự \texttt{|} bằng chữ \texttt{I} — lỗi nhầm lẫn
+thường gặp khi OCR gặp chữ hoa I trên nền sáng. Khoảng trắng thừa và
+ký tự đặc biệt không liên quan cũng được loại bỏ.
+
+\textbf{Bước 2: Loại bỏ watermark}
+
+Ảnh CCCD mẫu thường in chồng các chuỗi định danh như ``NOT A REAL ID'',
+``DEMO'', ``SAMPLE''\ lên vùng văn bản, khiến các chuỗi này lẫn vào
+kết quả OCR của trường họ tên hoặc địa chỉ. Hệ thống dùng biểu thức
+chính quy phát hiện và xóa các mẫu watermark đã biết, xử lý
+cả ở cấp độ chuỗi lẫn từng token riêng lẻ nhằm tránh xóa nhầm từ hợp lệ.
+
+\textbf{Bước 3: Chuẩn hóa theo từng trường nghiệp vụ}
+
+Mỗi trường thông tin được áp dụng luật chuẩn hóa riêng phù hợp với ngữ
+nghĩa của nó. Trường giới tính được chuẩn hóa về hai giá trị thống nhất
+\texttt{Male} / \texttt{Female}; quốc tịch về \texttt{Vietnam}; họ tên
+được chuyển về dạng Title Case. Các trường địa chỉ chỉ gộp khoảng trắng
+thừa mà không thay đổi nội dung.
+
+\textbf{Bước 4: Kiểm tra tính hợp lệ}
+
+Sau chuẩn hóa, từng trường được kiểm tra xem kết quả có hợp lý về mặt
+nghiệp vụ hay không thông qua các luật đặc thù: số CCCD phải chứa
+ít nhất 6 chữ số liên tiếp; các trường ngày phải khớp định dạng
+\texttt{DD/MM/YYYY}; giới tính chỉ nhận một trong bốn giá trị hợp lệ;
+trường văn bản tự do phải đủ độ dài tối thiểu. Trường nào không vượt qua
+kiểm tra sẽ được đưa ngược lại bước OCR dự phòng với vùng ảnh tăng cường
+tương ứng.
+
+
+\subsection{Đánh giá độ tin cậy}
+
+Sau khi trích xuất và hậu xử lý, mỗi bản ghi được gắn một điểm tin cậy
+tổng hợp nhằm phản ánh mức độ đáng tin của toàn bộ kết quả nhận dạng.
+Điểm này được tính từ hai thành phần độc lập.
+
+\textbf{Thành phần 1: Điểm tin cậy OCR}
+
+Trong quá trình nhận dạng, PaddleOCR trả về một điểm tin cậy cho từng
+text box, thể hiện mức độ chắc chắn của mô hình với chuỗi ký tự vừa nhận
+dạng. Điểm tin cậy OCR của toàn bản ghi là trung bình cộng các điểm này
+trên tất cả các trường, nhận giá trị trong khoảng $[0, 1]$.
+
+\textbf{Thành phần 2: Điểm hợp lệ nghiệp vụ}
+
+Thành phần này đánh giá kết quả sau hậu xử lý có ý nghĩa về mặt dữ liệu
+hay không, hoàn toàn độc lập với mô hình OCR. Điểm được tính theo công thức:
+
+\begin{equation}
+    \text{parse\_confidence} = \frac{\text{số trường vượt qua kiểm tra hợp lệ}}{\text{tổng số trường cần trích xuất}}
+\end{equation}
+
+Một trường được coi là hợp lệ khi giá trị sau chuẩn hóa thỏa mãn các
+luật nghiệp vụ tương ứng, chẳng hạn số CCCD phải đủ chữ số, ngày tháng
+phải đúng định dạng, giới tính chỉ nhận giá trị cho phép.
+
+\textbf{Điểm tin cậy tổng hợp}
+
+Hai thành phần được kết hợp theo trọng số cố định:
+\vspace{-0.5em}
+\begin{equation}
+    \text{final\_confidence} = 0{,}70 \times \text{ocr\_confidence}
+                             + 0{,}30 \times \text{parse\_confidence}
+\end{equation}
+
+
+
+Trọng số 70/30 ưu tiên tín hiệu từ mô hình nhận dạng nhưng vẫn phạt rõ
+ràng khi kết quả OCR tuy có điểm cao nhưng không có nghĩa về nghiệp vụ.
+Điểm tổng hợp này được lưu cùng mỗi bản ghi vào tệp CSV đầu ra và nạp
+vào tầng Bronze. Ở bước kiểm tra chất lượng dữ liệu, các lô ảnh có điểm
+tin cậy trung bình thấp hơn ngưỡng cho phép sẽ được ghi nhận cảnh báo
+để người vận hành xem xét và xử lý thủ công.
+
+
+\section{Trực quan hóa và Kết quả triển khai}
+
+\subsection{Giao diện điều phối Apache Airflow}
+
+Hệ thống sử dụng Apache Airflow để lập lịch và giám sát toàn bộ luồng
+xử lý dữ liệu. Giao diện web cho phép theo dõi trạng thái từng DAG,
+lịch sử chạy và log chi tiết của từng task.
+
+% -------------------------------------------------------
+% CHỤP 1: Trang DAGs — danh sách 3 DAG
+%   banking_structured_dag | data_quality_dag | ocr_unstructured_dag
+%   Cho thấy lịch chạy, trạng thái lần chạy gần nhất (success/failed)
+% -------------------------------------------------------
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{img4/giao diện airflow.png}
+    \caption{Danh sách DAG trên giao diện Apache Airflow}
+    \label{fig:airflow-dag-list}
+\end{figure}
+
+% -------------------------------------------------------
+% CHỤP 2: Graph view của banking_structured_dag
+%   Cho thấy toàn bộ chuỗi task: precheck → extract → MNS → dbt silver → dbt gold → notify
+%   Tô màu xanh các task đã chạy thành công
+% -------------------------------------------------------
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{img4/banking_structured_dag.png}
+    \caption{Graph view của DAG banking\_structured\_dag}
+    \label{fig:airflow-dag-graph}
+\end{figure}
+
+% -------------------------------------------------------
+% CHỤP 3 (tuỳ chọn): Log của một task bất kỳ (ví dụ extract_bronze_transactions)
+%   Cho thấy số dòng được nạp, thông tin audit
+% -------------------------------------------------------
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{img4/log.png}
+    \caption{Log chi tiết task trích xuất dữ liệu giao dịch}
+    \label{fig:airflow-task-log}
+\end{figure}
+
+
+\subsection{Giao diện web demo xử lý tài liệu}
+
+Hệ thống cung cấp giao diện web trực quan cho phép tải ảnh tài liệu lên
+và nhận kết quả trích xuất theo thời gian thực. Ứng dụng hỗ trợ hai loại
+tài liệu (CCCD và Sổ tiết kiệm) với 2 engine OCR tùy chọn: PaddleOCR,và Groq. Sau khi trích xuất, người dùng có thể đặt câu hỏi về
+dữ liệu thông qua chatbot tích hợp.
+
+% -------------------------------------------------------
+% CHỤP 4: Giao diện upload — trang chính
+%   Cho thấy: chọn loại tài liệu (CCCD / Sổ tiết kiệm),
+%   vùng drag & drop, nút chọn engine OCR
+% -------------------------------------------------------
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{img4/dd web.png}
+    \caption{Giao diện tải ảnh tài liệu lên hệ thống}
+    \label{fig:demo-upload}
+\end{figure}
+
+% -------------------------------------------------------
+% CHỤP 5: Kết quả trích xuất CCCD
+%   Bên trái: ảnh thẻ có khung ROI annotation
+%   Bên phải: bảng các trường (Họ tên, Số CCCD, Ngày sinh...)
+%             kèm badge điểm tin cậy (final_confidence)
+% -------------------------------------------------------
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{img4/kết quả demo CCCD.png}
+    \caption{Kết quả trích xuất thông tin CCCD}
+    \label{fig:demo-result-idcard}
+\end{figure}
+
+% -------------------------------------------------------
+% CHỤP 6: Kết quả trích xuất Sổ tiết kiệm
+%   Tương tự CHỤP 5 nhưng với doc_type = savings_book
+% -------------------------------------------------------
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{img4/kết quả demo STK.png}
+    \caption{Kết quả trích xuất thông tin Sổ tiết kiệm}
+    \label{fig:demo-result-savings}
+\end{figure}
+
+% -------------------------------------------------------
+% CHỤP 7: Chatbot hỏi đáp
+%   Giao diện chat phía dưới trang kết quả,
+%   nhập câu hỏi về dữ liệu vừa trích xuất, chatbot trả lời bằng tiếng Việt
+% -------------------------------------------------------
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{img4/demo chatbot.png}
+    \caption{Chatbot hỏi đáp về dữ liệu tài liệu đã trích xuất}
+    \label{fig:demo-chatbot}
+\end{figure}
+
+
+\subsection{Hệ thống báo cáo BI}
+
+Dữ liệu sau khi được xử lý qua toàn bộ pipeline được trực quan hóa
+trên Power BI, kết nối trực tiếp với tầng Gold của kho dữ liệu.
+Hệ thống báo cáo cung cấp các góc nhìn phân tích về hành vi giao dịch,
+phân khúc khách hàng và rủi ro tín dụng.
+
+% -------------------------------------------------------
+% CHỤP 8: Trang tổng quan (Overview)
+%   KPI cards: tổng giao dịch, tổng doanh thu, số khách hàng, tỷ lệ lỗi
+%   Biểu đồ xu hướng giao dịch theo thời gian
+% -------------------------------------------------------
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{img4/bi_overview.png}
+    \caption{Trang tổng quan hệ thống báo cáo Power BI}
+    \label{fig:bi-overview}
+\end{figure}
+
+% -------------------------------------------------------
+% CHỤP 9: Trang phân tích khách hàng
+%   Phân khúc theo income_segment, credit_risk_tier
+%   Phân bố debt_to_income_ratio
+% -------------------------------------------------------
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{img4/bi_customer.png}
+    \caption{Phân tích phân khúc khách hàng}
+    \label{fig:bi-customer}
+\end{figure}
+
+% -------------------------------------------------------
+% CHỤP 10: Trang phân tích giao dịch
+%   Top merchant, phân bố theo MCC, tỷ lệ chip vs non-chip
+%   Bản đồ hoặc biểu đồ theo địa điểm nếu có
+% -------------------------------------------------------
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{img4/bi_transaction.png}
+    \caption{Phân tích hành vi giao dịch}
+    \label{fig:bi-transaction}
+\end{figure}
+
+
+

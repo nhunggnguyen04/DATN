@@ -1,0 +1,1759 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OCR Demo — DATN Banking</title>
+  <style>
+    /* ── Reset ───────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --navy:       #0d1b2a;
+      --navy-mid:   #1b2d42;
+      --teal:       #0d9488;
+      --teal-l:     #14b8a6;
+      --cyan:       #06b6d4;
+      --bg:         #f0f4f8;
+      --white:      #ffffff;
+      --text:       #1e293b;
+      --muted:      #64748b;
+      --border:     #e2e8f0;
+      --green:      #059669; --green-bg: #d1fae5;
+      --amber:      #d97706; --amber-bg: #fef3c7;
+      --red:        #dc2626; --red-bg:   #fee2e2;
+      --blue:       #2563eb; --blue-bg:  #dbeafe;
+      --primary:    #2563eb;
+      --shadow-sm:  0 1px 3px rgba(0,0,0,.07);
+      --shadow-md:  0 4px 16px rgba(0,0,0,.09);
+      --shadow-lg:  0 10px 40px rgba(0,0,0,.11);
+      --r:          12px;
+      --r-lg:       18px;
+      --ease:       .2s ease;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                   'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg); color: var(--text);
+      min-height: 100vh; display: flex; flex-direction: column;
+      font-size: 15px; line-height: 1.6;
+    }
+
+    /* ── Header ──────────────────────────────────────────────────── */
+    header {
+      background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 60%, #1a3a5c 100%);
+      color: #fff; padding: 0 24px; position: sticky; top: 0; z-index: 200;
+      box-shadow: 0 2px 12px rgba(0,0,0,.3);
+    }
+    .hdr { max-width: 1040px; margin: 0 auto; display: flex;
+           align-items: center; justify-content: space-between; height: 64px; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-icon {
+      width: 38px; height: 38px;
+      background: linear-gradient(135deg, var(--teal), var(--cyan));
+      border-radius: 10px; display: flex; align-items: center;
+      justify-content: center; font-size: 18px;
+      box-shadow: 0 2px 8px rgba(6,182,212,.35);
+    }
+    .brand-text h1 { font-size: 17px; font-weight: 700; line-height: 1.2; }
+    .brand-text p  { font-size: 11.5px; color: rgba(255,255,255,.5); }
+    .hdr-badge {
+      background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12);
+      border-radius: 20px; padding: 5px 14px; font-size: 12px;
+      color: rgba(255,255,255,.65);
+    }
+    .hdr-badge span { color: var(--teal-l); font-weight: 600; }
+
+    /* ── Main ────────────────────────────────────────────────────── */
+    main { flex: 1; max-width: 1040px; margin: 0 auto; padding: 28px 18px 52px; width: 100%; }
+
+    /* ── Shared section label ─────────────────────────────────────── */
+    .sec-label {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 11px; font-weight: 700; letter-spacing: 1.1px;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 12px;
+    }
+    .sec-label::before {
+      content: ''; width: 3px; height: 14px;
+      background: linear-gradient(180deg, var(--teal), var(--cyan));
+      border-radius: 2px;
+    }
+
+    /* ── Card ────────────────────────────────────────────────────── */
+    .card {
+      background: var(--white); border-radius: var(--r-lg);
+      box-shadow: var(--shadow-md); border: 1px solid var(--border);
+      margin-bottom: 18px;
+    }
+
+    /* ── Upload card ─────────────────────────────────────────────── */
+    .upload-card { padding: 26px 26px 28px; }
+
+    /* Doc type selector */
+    .doc-types { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+    .doc-btn {
+      display: flex; align-items: center; gap: 12px; padding: 14px 18px;
+      border: 2px solid var(--border); border-radius: var(--r);
+      background: var(--white); cursor: pointer; transition: all var(--ease);
+      text-align: left; position: relative;
+    }
+    .doc-btn:hover { border-color: var(--teal-l); box-shadow: var(--shadow-sm); }
+    .doc-btn.active {
+      border-color: var(--teal);
+      background: linear-gradient(135deg,#f0fdfa,#ecfeff);
+      box-shadow: 0 0 0 3px rgba(13,148,136,.12);
+    }
+    .doc-icon {
+      width: 44px; height: 44px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center; font-size: 20px;
+    }
+    .doc-btn[data-type="id_card"]     .doc-icon { background: linear-gradient(135deg,#dbeafe,#ede9fe); }
+    .doc-btn[data-type="savings_book"] .doc-icon { background: linear-gradient(135deg,#d1fae5,#cffafe); }
+    .doc-info h3 { font-size: 13.5px; font-weight: 700; margin-bottom: 1px; }
+    .doc-info p  { font-size: 11.5px; color: var(--muted); }
+    .doc-check {
+      margin-left: auto; width: 20px; height: 20px; border-radius: 50%;
+      border: 2px solid var(--border); display: flex; align-items: center;
+      justify-content: center; flex-shrink: 0; transition: all var(--ease);
+    }
+    .doc-btn.active .doc-check { background: var(--teal); border-color: var(--teal); }
+    .doc-check svg { display: none; }
+    .doc-btn.active .doc-check svg { display: block; }
+
+    .divider { height: 1px; background: var(--border); margin: 0 -26px 24px; }
+
+    /* Drop zone */
+    .drop-zone {
+      border: 2px dashed #cbd5e1; border-radius: var(--r); padding: 32px 20px;
+      text-align: center; cursor: pointer; transition: all var(--ease);
+      position: relative; background: #fafbfc; min-height: 130px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: var(--teal); background: linear-gradient(135deg,#f0fdfa,#ecfeff);
+    }
+    .drop-zone.drag-over { box-shadow: 0 0 0 4px rgba(13,148,136,.15); }
+    .drop-zone input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .drop-empty { pointer-events: none; }
+    .drop-empty .up-icon {
+      width: 56px; height: 56px;
+      background: linear-gradient(135deg,#e0f2fe,#cffafe);
+      border-radius: 14px; display: flex; align-items: center;
+      justify-content: center; margin: 0 auto 12px; font-size: 24px;
+    }
+    .drop-empty h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .drop-empty p  { font-size: 12.5px; color: var(--muted); }
+    .fmt-badges { display: flex; gap: 5px; justify-content: center; margin-top: 10px; flex-wrap: wrap; }
+    .fmt-badge {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 5px;
+      padding: 1px 7px; font-size: 10.5px; font-weight: 600; color: var(--muted);
+    }
+
+    /* File list (before processing) */
+    #file-list { margin-top: 14px; display: none; flex-direction: column; gap: 6px; }
+    #file-list.has-files { display: flex; }
+    .fl-item {
+      display: flex; align-items: center; gap: 10px;
+      background: #f8fafc; border: 1px solid var(--border);
+      border-radius: 9px; padding: 9px 12px;
+    }
+    .fl-thumb { width: 48px; height: 36px; object-fit: cover; border-radius: 5px; border: 1px solid var(--border); flex-shrink: 0; }
+    .fl-info { flex: 1; min-width: 0; }
+    .fl-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .fl-meta { font-size: 11.5px; color: var(--muted); }
+    .fl-remove {
+      background: none; border: none; color: #94a3b8; cursor: pointer;
+      font-size: 16px; padding: 2px 6px; border-radius: 5px;
+      transition: all var(--ease); line-height: 1;
+    }
+    .fl-remove:hover { background: var(--red-bg); color: var(--red); }
+    /* Engine selector */
+    .engine-row { display: flex; gap: 10px; }
+    .eng-btn {
+      flex: 1; display: flex; align-items: center; gap: 12px;
+      padding: 12px 16px; background: var(--bg); border: 2px solid var(--border);
+      border-radius: 12px; cursor: pointer; text-align: left;
+      transition: all var(--ease);
+    }
+    .eng-btn:hover:not(.active) { border-color: var(--primary); background: #f8faff; }
+    .eng-btn.active { background: #eff6ff; border-color: var(--primary); }
+    .eng-icon { font-size: 22px; flex-shrink: 0; }
+    .eng-info h3 { font-size: 13px; font-weight: 700; margin: 0 0 2px; color: var(--text); }
+    .eng-info p  { font-size: 11.5px; color: var(--muted); margin: 0; }
+    /* Gemini API key panel */
+    .gemini-key-row {
+      display: none; flex-direction: column; gap: 10px;
+      padding: 14px 16px; background: #fffbeb;
+      border: 1px solid #fcd34d; border-radius: 10px; margin-top: 10px;
+    }
+    .gemini-key-row.visible { display: flex; }
+    .gkeys-header { display: flex; align-items: center; justify-content: space-between; }
+    .key-label { font-size: 12.5px; font-weight: 700; color: var(--text); }
+    .key-link { font-size: 11.5px; color: var(--primary); text-decoration: none; }
+    .key-link:hover { text-decoration: underline; }
+    .gkeys-list { display: flex; flex-direction: column; gap: 6px; }
+    .gkey-item { display: flex; align-items: center; gap: 8px; }
+    .gkey-idx {
+      font-size: 11px; font-weight: 700; color: var(--muted);
+      min-width: 38px; text-align: right; flex-shrink: 0;
+    }
+    .gkey-item input {
+      flex: 1; padding: 7px 11px; border: 1px solid var(--border);
+      border-radius: 7px; font-size: 12.5px; font-family: monospace;
+      background: white; outline: none; transition: border-color var(--ease);
+    }
+    .gkey-item input:focus { border-color: var(--primary); }
+    .gkey-item input.has-key { border-color: #86efac; background: #f0fdf4; }
+    .gkey-remove {
+      background: none; border: none; color: #cbd5e1; cursor: pointer;
+      font-size: 15px; padding: 2px 6px; border-radius: 5px;
+      transition: all var(--ease); flex-shrink: 0; line-height: 1;
+    }
+    .gkey-remove:hover { background: var(--red-bg); color: var(--red); }
+    .gkeys-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+    .gkey-add-btn {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 14px; background: white; border: 1px dashed #fbbf24;
+      border-radius: 7px; font-size: 12px; font-weight: 600; color: #92400e;
+      cursor: pointer; transition: all var(--ease);
+    }
+    .gkey-add-btn:hover:not(:disabled) { background: #fef3c7; border-style: solid; }
+    .gkey-add-btn:disabled { opacity: 0.45; cursor: default; }
+    .gkeys-hint { font-size: 11px; color: #a16207; }
+    /* ── Chat panel ──────────────────────────────────────────────── */
+    .chat-panel {
+      border-top: 1px solid var(--border); padding: 18px 22px 20px;
+    }
+    .chat-hdr {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .chat-hdr-left { display: flex; align-items: center; gap: 9px; }
+    .chat-title { font-size: 14px; font-weight: 700; color: var(--text); }
+    .chat-badge {
+      font-size: 10.5px; font-weight: 700; padding: 2px 8px;
+      background: #eff6ff; color: var(--primary); border-radius: 20px;
+    }
+    .chat-clear-btn {
+      background: none; border: none; font-size: 12px; color: var(--muted);
+      cursor: pointer; padding: 3px 8px; border-radius: 5px;
+      transition: all var(--ease);
+    }
+    .chat-clear-btn:hover { background: var(--bg); color: var(--text); }
+    .chat-messages {
+      max-height: 300px; overflow-y: auto; display: flex;
+      flex-direction: column; gap: 10px; margin-bottom: 14px;
+      scroll-behavior: smooth;
+    }
+    .chat-empty {
+      text-align: center; padding: 18px 0;
+    }
+    .chat-empty p { font-size: 13px; color: var(--muted); margin: 0 0 12px; }
+    .chat-suggestions { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+    .chat-sug {
+      padding: 5px 12px; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 20px; font-size: 12px; color: var(--text);
+      cursor: pointer; transition: all var(--ease);
+    }
+    .chat-sug:hover { background: #eff6ff; border-color: var(--primary); color: var(--primary); }
+    .chat-msg { display: flex; gap: 8px; align-items: flex-end; }
+    .chat-msg.user { flex-direction: row-reverse; }
+    .chat-avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; flex-shrink: 0;
+      background: var(--bg); border: 1px solid var(--border);
+    }
+    .chat-bubble {
+      max-width: 78%; padding: 9px 13px; border-radius: 14px;
+      font-size: 13px; line-height: 1.55; white-space: pre-wrap; word-break: break-word;
+    }
+    .chat-msg.user .chat-bubble {
+      background: var(--primary); color: #fff;
+      border-radius: 14px 14px 2px 14px;
+    }
+    .chat-msg.assistant .chat-bubble {
+      background: var(--bg); color: var(--text);
+      border: 1px solid var(--border); border-radius: 14px 14px 14px 2px;
+    }
+    .chat-msg.error-msg .chat-bubble {
+      background: var(--red-bg); color: var(--red);
+      border: 1px solid #fca5a5; border-radius: 14px;
+    }
+    .chat-typing-dots { display: flex; gap: 4px; padding: 4px 2px; }
+    .chat-typing-dots span {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--muted); animation: dot-bounce 1.2s infinite;
+    }
+    .chat-typing-dots span:nth-child(2) { animation-delay: .2s; }
+    .chat-typing-dots span:nth-child(3) { animation-delay: .4s; }
+    @keyframes dot-bounce { 0%,80%,100% { transform: translateY(0); } 40% { transform: translateY(-6px); } }
+    .chat-input-row { display: flex; gap: 8px; }
+    .chat-input-row input {
+      flex: 1; padding: 9px 14px; border: 1px solid var(--border);
+      border-radius: 9px; font-size: 13px; outline: none;
+      transition: border-color var(--ease); background: white;
+    }
+    .chat-input-row input:focus { border-color: var(--primary); }
+    .chat-send-btn {
+      padding: 9px 18px; background: var(--primary); color: white;
+      border: none; border-radius: 9px; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: opacity var(--ease); white-space: nowrap;
+    }
+    .chat-send-btn:disabled { opacity: 0.5; cursor: default; }
+    .chat-no-key {
+      display: flex; align-items: center; gap: 8px;
+      padding: 12px 16px; background: #fffbeb;
+      border: 1px solid #fcd34d; border-radius: 9px;
+      font-size: 12.5px; color: #92400e; margin-bottom: 0;
+    }
+    /* ROI note (Gemini) */
+    .roi-note {
+      display: none; margin: 6px 0; padding: 7px 12px;
+      background: #fffbeb; border: 1px solid #fcd34d; border-radius: 7px;
+      font-size: 11.5px; color: #92400e;
+    }
+    /* Per-file doc type toggle */
+    .fl-dtype {
+      display: flex; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 7px; padding: 2px; gap: 2px; flex-shrink: 0;
+    }
+    .fdt {
+      padding: 4px 9px; border: none; border-radius: 5px; font-size: 11.5px;
+      font-weight: 600; cursor: pointer; background: none; color: var(--muted);
+      transition: all var(--ease); white-space: nowrap;
+    }
+    .fdt.active { background: var(--white); color: var(--text); box-shadow: var(--shadow-sm); }
+    .fl-add-more {
+      font-size: 12.5px; color: var(--teal); font-weight: 600;
+      cursor: pointer; text-decoration: underline; text-align: center;
+      padding: 6px; border: none; background: none;
+    }
+    #file-add-input { display: none; }
+
+    /* Extract button */
+    .btn-row { margin-top: 20px; }
+    #extract-btn {
+      width: 100%; height: 50px;
+      background: linear-gradient(135deg, var(--teal), var(--cyan));
+      color: #fff; font-size: 15px; font-weight: 700; border: none;
+      border-radius: var(--r); cursor: pointer; transition: all var(--ease);
+      display: flex; align-items: center; justify-content: center; gap: 9px;
+      box-shadow: 0 4px 16px rgba(13,148,136,.3);
+    }
+    #extract-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(13,148,136,.42); }
+    #extract-btn:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+
+    /* ── Queue panel ─────────────────────────────────────────────── */
+    #queue-panel { display: none; padding: 20px 22px; }
+    #queue-panel.visible { display: block; }
+    .queue-header {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;
+    }
+    .queue-title { font-size: 14px; font-weight: 700; }
+    .queue-counter {
+      font-size: 12px; color: var(--muted); font-weight: 600;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 20px; padding: 3px 10px;
+    }
+    .qi {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; border-radius: 9px; margin-bottom: 6px;
+      background: #fafbfc; border: 1px solid var(--border);
+      transition: background var(--ease);
+    }
+    .qi.processing { background: #f0fdfa; border-color: rgba(13,148,136,.25); }
+    .qi.done       { background: #f0fdf4; border-color: rgba(5,150,105,.2); }
+    .qi.error-item { background: var(--red-bg); border-color: rgba(220,38,38,.2); }
+    .qi-icon { font-size: 18px; flex-shrink: 0; width: 22px; text-align: center; }
+    .qi-thumb { width: 44px; height: 33px; object-fit: cover; border-radius: 5px; border: 1px solid var(--border); flex-shrink: 0; }
+    .qi-body { flex: 1; min-width: 0; }
+    .qi-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .qi-bar-wrap { margin-top: 5px; display: flex; align-items: center; gap: 8px; }
+    .qi-track { flex: 1; height: 4px; background: #e2e8f0; border-radius: 2px; overflow: hidden; }
+    .qi-fill { height: 100%; border-radius: 2px; transition: width .4s ease; background: linear-gradient(90deg, var(--teal), var(--cyan)); }
+    .qi-msg { font-size: 11px; color: var(--muted); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .qi-badge {
+      font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 6px;
+      flex-shrink: 0; white-space: nowrap;
+    }
+    .qi-badge.high   { background: var(--green-bg); color: var(--green); }
+    .qi-badge.medium { background: var(--amber-bg); color: var(--amber); }
+    .qi-badge.low    { background: var(--red-bg);   color: var(--red);   }
+    .qi-badge.err    { background: var(--red-bg);   color: var(--red);   }
+    .qi-badge.wait   { background: var(--bg);       color: var(--muted); }
+
+    /* ── Result tabs ─────────────────────────────────────────────── */
+    #result-tabs-bar { display: none; margin-bottom: 14px; }
+    #result-tabs-bar.visible { display: block; }
+    .rtabs-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .rtabs-label  { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+    .rtabs-scroll { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+    .rtabs-scroll::-webkit-scrollbar { height: 3px; }
+    .rtabs-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .rtab {
+      display: flex; align-items: center; gap: 7px; padding: 8px 14px;
+      border: 1.5px solid var(--border); border-radius: 9px;
+      background: var(--white); cursor: pointer; flex-shrink: 0;
+      transition: all var(--ease); font-size: 12.5px; font-weight: 600;
+      box-shadow: var(--shadow-sm);
+    }
+    .rtab:hover  { border-color: var(--teal-l); }
+    .rtab.active { border-color: var(--teal); background: linear-gradient(135deg,#f0fdfa,#ecfeff); box-shadow: 0 0 0 2px rgba(13,148,136,.12); }
+    .rtab-name   { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .rtab-conf   { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 5px; }
+    .rtab-conf.high   { background: var(--green-bg); color: var(--green); }
+    .rtab-conf.medium { background: var(--amber-bg); color: var(--amber); }
+    .rtab-conf.low    { background: var(--red-bg);   color: var(--red); }
+    .rtab-conf.err    { background: var(--red-bg);   color: var(--red); }
+
+    /* ── Result card ─────────────────────────────────────────────── */
+    #result-section { display: none; animation: slideDown .35s ease; }
+    #result-section.visible { display: block; }
+    @keyframes slideDown { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
+
+    /* Result header */
+    .res-hdr {
+      background: linear-gradient(135deg, var(--navy), var(--navy-mid));
+      padding: 18px 22px; border-radius: var(--r-lg) var(--r-lg) 0 0;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 14px;
+    }
+    .res-title { display: flex; align-items: center; gap: 11px; color: #fff; }
+    .res-title-icon {
+      width: 36px; height: 36px; background: rgba(255,255,255,.1);
+      border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 17px;
+    }
+    .res-title h2 { font-size: 15px; font-weight: 700; line-height: 1.2; }
+    .res-title p  { font-size: 11.5px; color: rgba(255,255,255,.5); margin-top: 1px; }
+    .conf-badges { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .cbadge {
+      display: flex; align-items: center; gap: 5px;
+      background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.13);
+      border-radius: 7px; padding: 5px 10px;
+    }
+    .cbadge-lbl { font-size: 10.5px; color: rgba(255,255,255,.55); }
+    .cbadge-val { font-size: 15px; font-weight: 800; }
+    .cbadge-val.high   { color: #6ee7b7; }
+    .cbadge-val.medium { color: #fcd34d; }
+    .cbadge-val.low    { color: #fca5a5; }
+
+    /* Confidence bars */
+    .conf-bars {
+      background: var(--navy); padding: 10px 22px 0;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .cbar-row { display: flex; align-items: center; gap: 10px; padding-bottom: 10px; }
+    .cbar-lbl { font-size: 11px; color: rgba(255,255,255,.45); min-width: 100px; }
+    .cbar-track { flex: 1; height: 5px; background: rgba(255,255,255,.1); border-radius: 3px; overflow: hidden; }
+    .cbar-fill { height: 100%; border-radius: 3px; transition: width .8s cubic-bezier(.4,0,.2,1); }
+    .cbar-fill.high   { background: linear-gradient(90deg,#059669,#34d399); }
+    .cbar-fill.medium { background: linear-gradient(90deg,#d97706,#fbbf24); }
+    .cbar-fill.low    { background: linear-gradient(90deg,#dc2626,#f87171); }
+    .cbar-pct { font-size: 11.5px; font-weight: 700; min-width: 32px; text-align: right; }
+    .cbar-pct.high { color: #6ee7b7; } .cbar-pct.medium { color: #fcd34d; } .cbar-pct.low { color: #fca5a5; }
+
+    /* Body */
+    .res-body { display: grid; grid-template-columns: 2fr 3fr; }
+
+    /* Image panel */
+    .img-panel {
+      padding: 20px; border-right: 1px solid var(--border);
+      background: #fafbfc; display: flex; flex-direction: column; gap: 10px;
+    }
+    .img-tabs { display: flex; gap: 6px; }
+    .img-tab-btn {
+      flex: 1; padding: 6px 10px; border: 1.5px solid var(--border);
+      border-radius: 7px; background: var(--white); font-size: 12px;
+      font-weight: 600; cursor: pointer; transition: all var(--ease); text-align: center;
+    }
+    .img-tab-btn.active { border-color: var(--teal); background: #f0fdfa; color: var(--teal); }
+    .img-pane { display: none; }
+    .img-pane.active { display: block; }
+    .img-pane img { width: 100%; border-radius: 8px; border: 1px solid var(--border); display: block; }
+    .img-meta { font-size: 11px; color: var(--muted); display: flex; flex-direction: column; gap: 3px; }
+
+    /* ROI legend */
+    .roi-legend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+    .legend-item { display: flex; align-items: center; gap: 4px; font-size: 10.5px; color: var(--muted); }
+    .legend-dot  { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .legend-dot.high   { background: #22c55e; }
+    .legend-dot.medium { background: #f59e0b; }
+    .legend-dot.low    { background: #ef4444; }
+
+    /* Data panel */
+    .data-panel { padding: 20px; }
+    .data-panel-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .data-panel-title { font-size: 13px; font-weight: 700; }
+    .plaus-chip { font-size: 11.5px; font-weight: 600; padding: 3px 10px; border-radius: 20px; background: var(--green-bg); color: var(--green); }
+    .plaus-chip.warn { background: var(--amber-bg); color: var(--amber); }
+
+    .fields-tbl { width: 100%; border-collapse: separate; border-spacing: 0 5px; }
+    .fields-tbl td { padding: 9px 11px; vertical-align: middle; }
+    .fields-tbl td:first-child {
+      border-radius: 7px 0 0 7px; background: #f8fafc;
+      border: 1px solid var(--border); border-right: none; width: 37%;
+    }
+    .fields-tbl td:nth-child(2) {
+      background: #f8fafc; border: 1px solid var(--border); border-left: none; border-right: none;
+    }
+    .fields-tbl td:last-child {
+      border-radius: 0 7px 7px 0; background: #f8fafc;
+      border: 1px solid var(--border); border-left: none; width: 80px; text-align: right;
+    }
+    .fkey { font-size: 11.5px; font-weight: 600; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+    .fdot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .fdot.high { background: var(--green); } .fdot.medium { background: var(--amber); }
+    .fdot.low  { background: var(--red);   } .fdot.none   { background: #cbd5e1; }
+    .fval { font-size: 13px; font-weight: 600; word-break: break-word; }
+    .fval.empty { color: #cbd5e1; font-style: italic; font-weight: 400; font-size: 12px; }
+    .cchip { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 2px 6px; border-radius: 5px; }
+    .cchip.high   { background: var(--green-bg); color: var(--green); }
+    .cchip.medium { background: var(--amber-bg); color: var(--amber); }
+    .cchip.low    { background: var(--red-bg);   color: var(--red);   }
+    .cchip.none   { background: #f1f5f9;          color: #94a3b8;      }
+
+    /* Actions */
+    .res-actions {
+      padding: 14px 20px 16px; border-top: 1px solid var(--border);
+      display: flex; gap: 8px; background: #fafbfc;
+      border-radius: 0 0 var(--r-lg) var(--r-lg); flex-wrap: wrap;
+    }
+    .btn-act {
+      display: flex; align-items: center; gap: 6px; padding: 8px 16px;
+      border: 1px solid var(--border); border-radius: 8px; background: var(--white);
+      font-size: 12.5px; font-weight: 600; color: var(--text); cursor: pointer;
+      transition: all var(--ease); box-shadow: var(--shadow-sm);
+    }
+    .btn-act:hover { border-color: var(--teal); color: var(--teal); background: #f0fdfa; }
+    .btn-act.danger { margin-left: auto; }
+    .btn-act.danger:hover { border-color: #fecaca; color: var(--red); background: var(--red-bg); }
+    .copy-ok { display: none; }
+    #copy-btn.copied .copy-default { display: none; }
+    #copy-btn.copied .copy-ok      { display: inline; color: var(--green); }
+
+    /* ── History panel ───────────────────────────────────────────── */
+    #history-panel { margin-bottom: 10px; }
+    .hist-toggle {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 13px 18px; cursor: pointer; user-select: none;
+      border-radius: var(--r-lg); background: var(--white);
+      border: 1px solid var(--border); box-shadow: var(--shadow-sm);
+      transition: all var(--ease);
+    }
+    .hist-toggle:hover { border-color: var(--teal-l); }
+    .hist-toggle-left { display: flex; align-items: center; gap: 10px; }
+    .hist-toggle-left span:first-child { font-size: 18px; }
+    .hist-title  { font-size: 14px; font-weight: 700; }
+    .hist-count  { font-size: 12px; color: var(--muted); padding: 2px 9px; background: var(--bg); border: 1px solid var(--border); border-radius: 20px; }
+    .hist-arrow  { font-size: 16px; color: var(--muted); transition: transform var(--ease); }
+    .hist-arrow.open { transform: rotate(180deg); }
+
+    #history-body {
+      display: none; background: var(--white);
+      border: 1px solid var(--border); border-top: none;
+      border-radius: 0 0 var(--r-lg) var(--r-lg);
+      box-shadow: var(--shadow-sm); overflow: hidden;
+    }
+    #history-body.open { display: block; }
+    .hist-table-wrap { overflow-x: auto; }
+    .hist-tbl {
+      width: 100%; border-collapse: collapse; font-size: 12.5px;
+    }
+    .hist-tbl th {
+      padding: 9px 14px; text-align: left; font-weight: 700;
+      color: var(--muted); border-bottom: 1px solid var(--border);
+      background: #fafbfc; font-size: 11px; letter-spacing: .5px; text-transform: uppercase;
+    }
+    .hist-tbl td { padding: 9px 14px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+    .hist-tbl tr:last-child td { border-bottom: none; }
+    .hist-tbl tr:hover td { background: #f8fafc; }
+    .hist-expand { cursor: pointer; }
+    .hist-fields {
+      display: none; background: #fafbfc; padding: 10px 14px;
+      border-top: 1px dashed var(--border);
+    }
+    .hist-fields.open { display: block; }
+    .hist-fields-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px,1fr)); gap: 6px; }
+    .hf-item { font-size: 11.5px; }
+    .hf-label { color: var(--muted); margin-bottom: 1px; }
+    .hf-value { font-weight: 600; color: var(--text); word-break: break-word; }
+    .hf-value.empty { color: #cbd5e1; font-style: italic; }
+    .hist-actions { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--border); }
+    .btn-hist-clear {
+      font-size: 12px; font-weight: 600; color: var(--red); cursor: pointer;
+      background: none; border: 1px solid #fecaca; border-radius: 7px;
+      padding: 5px 12px; transition: all var(--ease);
+    }
+    .btn-hist-clear:hover { background: var(--red-bg); }
+    .hist-empty { padding: 28px; text-align: center; color: var(--muted); font-size: 13px; }
+
+    /* ── Status banner ───────────────────────────────────────────── */
+    #status-banner { display: none; padding: 11px 16px; border-radius: var(--r); margin-top: 14px; font-size: 13px; font-weight: 500; align-items: center; gap: 8px; }
+    #status-banner.error   { display: flex; background: var(--red-bg);  color: var(--red);  border: 1px solid #fecaca; }
+    #status-banner.info    { display: flex; background: var(--blue-bg); color: var(--blue); border: 1px solid #bfdbfe; }
+
+    /* ── Spinner ─────────────────────────────────────────────────── */
+    .spinner { width: 18px; height: 18px; border: 2.5px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .65s linear infinite; display: none; }
+    #extract-btn.loading .spinner { display: block; }
+    #extract-btn.loading .btn-icon { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Footer ──────────────────────────────────────────────────── */
+    footer { background: var(--navy); color: rgba(255,255,255,.38); text-align: center; padding: 14px; font-size: 11.5px; margin-top: auto; }
+    footer strong { color: rgba(255,255,255,.65); }
+
+    /* ── Responsive ──────────────────────────────────────────────── */
+    @media (max-width: 700px) {
+      .res-body { grid-template-columns: 1fr; }
+      .img-panel { border-right: none; border-bottom: 1px solid var(--border); }
+      .doc-types { grid-template-columns: 1fr; }
+      .hdr-badge { display: none; }
+      main { padding: 18px 12px 40px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────────────────── -->
+<header>
+  <div class="hdr">
+    <div class="brand">
+      <div class="brand-icon">🏦</div>
+      <div class="brand-text">
+        <h1>OCR Demo</h1>
+        <p>DATN Banking Data Platform</p>
+      </div>
+    </div>
+    <div class="hdr-badge">Powered by <span>PaddleOCR PP-OCRv3</span></div>
+  </div>
+</header>
+
+<main>
+
+  <!-- ── Upload card ─────────────────────────────────────────────── -->
+  <div class="card upload-card">
+    <!-- Step 1 -->
+    <div class="sec-label">Bước 1 — Chọn loại tài liệu</div>
+    <div class="doc-types">
+      <button class="doc-btn active" data-type="id_card" onclick="selectDoc(this)">
+        <div class="doc-icon">🪪</div>
+        <div class="doc-info"><h3>Căn Cước Công Dân</h3><p>9 trường: họ tên, số CCCD, ngày sinh…</p></div>
+        <div class="doc-check"><svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      </button>
+      <button class="doc-btn" data-type="savings_book" onclick="selectDoc(this)">
+        <div class="doc-icon">📘</div>
+        <div class="doc-info"><h3>Sổ Tiết Kiệm</h3><p>7 trường: ngày GD, số tiền, số dư…</p></div>
+        <div class="doc-check"><svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      </button>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Step 2 — Engine -->
+    <div class="sec-label">Bước 2 — Chọn engine trích xuất</div>
+    <div class="engine-row">
+      <button class="eng-btn active" data-engine="paddleocr" onclick="selectEngine(this)">
+        <span class="eng-icon">🔬</span>
+        <div class="eng-info"><h3>PaddleOCR</h3><p>Chạy local · Hỗ trợ highlight ROI</p></div>
+      </button>
+      <button class="eng-btn" data-engine="groq" onclick="selectEngine(this)">
+        <span class="eng-icon">🦙</span>
+        <div class="eng-info"><h3>Groq (LLaMA Vision)</h3><p>Miễn phí · Không giới hạn ngày</p></div>
+      </button>
+    </div>
+    <div class="gemini-key-row" id="gemini-key-row">
+      <div class="gkeys-header">
+        <span class="key-label" id="key-panel-label">🔑 API Keys (xoay vòng tự động)</span>
+        <a class="key-link" id="key-panel-link" href="#" target="_blank" rel="noopener">Lấy key miễn phí ↗</a>
+      </div>
+      <div class="gkeys-list" id="gkeys-list"><!-- rendered by JS --></div>
+      <div class="gkeys-footer">
+        <button class="gkey-add-btn" id="gkey-add-btn" onclick="addKeySlot()">+ Thêm key</button>
+        <span class="gkeys-hint" id="gkeys-hint"></span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Step 3 -->
+    <div class="sec-label">Bước 3 — Tải ảnh lên <span style="font-size:10px;margin-left:4px;color:#94a3b8">(hỗ trợ nhiều ảnh)</span></div>
+    <div class="drop-zone" id="drop-zone"
+         ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+      <input type="file" id="file-input" accept=".jpg,.jpeg,.png,.bmp,.tif,.tiff"
+             multiple onchange="onFileSelect(event)">
+      <div class="drop-empty">
+        <div class="up-icon">📷</div>
+        <h3>Kéo thả ảnh vào đây</h3>
+        <p>hoặc nhấp để chọn — có thể chọn nhiều ảnh cùng lúc</p>
+        <div class="fmt-badges">
+          <span class="fmt-badge">JPG</span><span class="fmt-badge">PNG</span>
+          <span class="fmt-badge">BMP</span><span class="fmt-badge">TIFF</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- File list -->
+    <div id="file-list">
+      <!-- populated by JS -->
+      <input type="file" id="file-add-input" accept=".jpg,.jpeg,.png,.bmp,.tif,.tiff"
+             multiple onchange="onAddMore(event)">
+      <button class="fl-add-more" onclick="document.getElementById('file-add-input').click()">
+        + Thêm ảnh
+      </button>
+    </div>
+
+    <!-- Button + status -->
+    <div class="btn-row">
+      <button id="extract-btn" onclick="startBatch()" disabled>
+        <div class="spinner"></div>
+        <span class="btn-icon">🔍</span>
+        <span id="btn-text">Trích Xuất Dữ Liệu</span>
+      </button>
+    </div>
+    <div id="status-banner">
+      <span id="status-icon">⚠️</span>
+      <span id="status-msg"></span>
+    </div>
+  </div>
+
+  <!-- ── Queue panel ──────────────────────────────────────────────── -->
+  <div class="card" id="queue-panel">
+    <div class="queue-header">
+      <span class="queue-title">Tiến trình xử lý</span>
+      <span class="queue-counter" id="queue-counter">0/0</span>
+    </div>
+    <div id="queue-items"></div>
+  </div>
+
+  <!-- ── Result tabs ──────────────────────────────────────────────── -->
+  <div id="result-tabs-bar">
+    <div class="rtabs-header">
+      <span class="rtabs-label">Kết quả</span>
+    </div>
+    <div class="rtabs-scroll" id="rtabs-scroll"></div>
+  </div>
+
+  <!-- ── Result card ──────────────────────────────────────────────── -->
+  <div id="result-section">
+    <div class="card" style="overflow:hidden">
+      <!-- Header -->
+      <div class="res-hdr">
+        <div class="res-title">
+          <div class="res-title-icon" id="res-icon">📄</div>
+          <div>
+            <h2 id="res-title-text">Kết quả</h2>
+            <p id="res-subtitle">—</p>
+          </div>
+        </div>
+        <div class="conf-badges" id="conf-badges"></div>
+      </div>
+      <!-- Confidence bars -->
+      <div class="conf-bars" id="conf-bars"></div>
+      <!-- Body -->
+      <div class="res-body">
+        <!-- Image panel -->
+        <div class="img-panel">
+          <div class="img-tabs">
+            <button class="img-tab-btn active" onclick="switchImgTab('original', this)">Ảnh gốc</button>
+            <button class="img-tab-btn" onclick="switchImgTab('annotated', this)">Ảnh ROI</button>
+          </div>
+          <div class="img-pane active" id="pane-original"><img id="img-original" src="" alt="ảnh gốc"></div>
+          <div class="img-pane" id="pane-annotated">
+            <div class="roi-note" id="roi-note">✨ Gemini Flash không hỗ trợ highlight ROI — hiển thị ảnh gốc</div>
+            <img id="img-annotated" src="" alt="ảnh roi">
+          </div>
+          <div class="img-meta" id="img-meta"></div>
+          <div class="roi-legend" id="roi-legend">
+            <span class="legend-item"><span class="legend-dot high"></span>Confidence cao ≥80%</span>
+            <span class="legend-item"><span class="legend-dot medium"></span>Trung bình 50–80%</span>
+            <span class="legend-item"><span class="legend-dot low"></span>Thấp &lt;50%</span>
+          </div>
+        </div>
+        <!-- Data panel -->
+        <div class="data-panel">
+          <div class="data-panel-hdr">
+            <span class="data-panel-title">Dữ liệu đã trích xuất</span>
+            <span class="plaus-chip" id="plaus-chip">—</span>
+          </div>
+          <table class="fields-tbl" id="fields-tbl"><tbody></tbody></table>
+        </div>
+      </div>
+      <!-- Chat panel -->
+      <div class="chat-panel" id="chat-panel">
+        <div class="chat-hdr">
+          <div class="chat-hdr-left">
+            <span class="chat-title">💬 Hỏi đáp về kết quả</span>
+            <span class="chat-badge">Groq LLaMA</span>
+          </div>
+          <button class="chat-clear-btn" onclick="clearChat()">🗑 Xóa hội thoại</button>
+        </div>
+        <div class="chat-messages" id="chat-messages">
+          <!-- populated by JS -->
+        </div>
+        <div id="chat-no-key" class="chat-no-key" style="display:none">
+          ⚠️ Nhập Groq API key ở <strong>Bước 2 → Groq</strong> để sử dụng chatbot.
+        </div>
+        <div id="chat-input-area">
+          <div class="chat-input-row">
+            <input type="text" id="chat-input"
+                   placeholder="Hỏi gì đó về kết quả... (Enter để gửi)"
+                   onkeydown="if(event.key==='Enter')sendChat()">
+            <button class="chat-send-btn" id="chat-send-btn" onclick="sendChat()">Gửi ➤</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="res-actions">
+        <button class="btn-act" id="copy-btn" onclick="copyResult()">
+          <span class="copy-default">📋 Sao chép</span>
+          <span class="copy-ok">✅ Đã sao chép!</span>
+        </button>
+        <button class="btn-act" onclick="exportJSON()">⬇️ JSON</button>
+        <button class="btn-act" onclick="exportCSV()">⬇️ CSV</button>
+        <button class="btn-act danger" onclick="resetAll()">🔄 Làm mới</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── History panel ────────────────────────────────────────────── -->
+  <div id="history-panel">
+    <div class="hist-toggle" onclick="toggleHistory()">
+      <div class="hist-toggle-left">
+        <span>🕑</span>
+        <span class="hist-title">Lịch sử session</span>
+        <span class="hist-count" id="hist-count">0 ảnh</span>
+      </div>
+      <span class="hist-arrow" id="hist-arrow">▾</span>
+    </div>
+    <div id="history-body">
+      <div id="hist-content"></div>
+      <div class="hist-actions">
+        <button class="btn-hist-clear" onclick="clearHistory()">🗑 Xóa lịch sử</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <strong>DATN Banking Platform</strong> — Demo OCR trích xuất tài liệu — PaddleOCR PP-OCRv3 · Gemini 2.0 Flash
+</footer>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════════════════════════ */
+const S = {
+  docType:      'id_card',
+  engine:        'paddleocr',
+  geminiApiKeys: [''],
+  groqApiKeys:   [''],
+  files:        [],     // [{file, thumbUrl, docType}]
+  queue:        [],     // [{file, thumbUrl, docType, status, pct, msg, result, error}]
+  results:      [],     // [{result, filename, thumbUrl}]
+  curResultIdx: -1,
+  isProcessing: false,
+  pendingCount: 0,      // số ảnh chưa xong (parallel tracking)
+};
+
+const DOC_META = {
+  id_card:      { icon: '🪪', title: 'Căn Cước Công Dân (CCCD)' },
+  savings_book: { icon: '📘', title: 'Sổ Tiết Kiệm' },
+};
+
+const HISTORY_KEY = 'ocr_demo_history_v2';
+
+/* ═══════════════════════════════════════════════════════════════════
+   DOC TYPE
+═══════════════════════════════════════════════════════════════════ */
+function selectDoc(btn) {
+  document.querySelectorAll('.doc-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  S.docType = btn.dataset.type;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ENGINE SELECTION
+═══════════════════════════════════════════════════════════════════ */
+const MAX_KEYS = 10;
+
+const ENGINE_KEY_META = {
+  gemini: {
+    label: '🔑 Gemini API Keys (xoay vòng tự động)',
+    link:  'https://aistudio.google.com/app/apikey',
+  },
+  groq: {
+    label: '🔑 Groq API Keys (xoay vòng tự động)',
+    link:  'https://console.groq.com/keys',
+  },
+};
+
+function currentKeyArray() {
+  return S.engine === 'groq' ? S.groqApiKeys : S.geminiApiKeys;
+}
+
+function selectEngine(btn) {
+  document.querySelectorAll('.eng-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  S.engine = btn.dataset.engine;
+
+  const needKey = S.engine === 'gemini' || S.engine === 'groq';
+  $('gemini-key-row').classList.toggle('visible', needKey);
+
+  if (needKey) {
+    const meta = ENGINE_KEY_META[S.engine];
+    $('key-panel-label').textContent = meta.label;
+    $('key-panel-link').href         = meta.link;
+    renderKeySlots();
+  }
+}
+
+/* ── Key slot management ── */
+function renderKeySlots() {
+  const list = $('gkeys-list');
+  list.innerHTML = '';
+  currentKeyArray().forEach((k, i) => {
+    const row = document.createElement('div');
+    row.className = 'gkey-item';
+    row.id = `gkey-row-${i}`;
+    row.innerHTML = `
+      <span class="gkey-idx">Key ${i + 1}</span>
+      <input type="password" placeholder="AIzaSy..."
+             value="${esc(k)}" autocomplete="off"
+             oninput="onKeyInput(${i}, this.value)"
+             class="${k ? 'has-key' : ''}">
+      <button class="gkey-remove" onclick="removeKeySlot(${i})" title="Xóa">✕</button>`;
+    list.appendChild(row);
+  });
+
+  const n = currentKeyArray().length;
+  const filled = currentKeyArray().filter(k => k.trim()).length;
+  $('gkey-add-btn').disabled = n >= MAX_KEYS;
+  $('gkeys-hint').textContent =
+    n >= MAX_KEYS
+      ? `Đã đạt tối đa ${MAX_KEYS} keys`
+      : `${filled}/${n} key đã nhập · hệ thống xoay vòng tự động`;
+}
+
+function addKeySlot() {
+  const arr = currentKeyArray();
+  if (arr.length >= MAX_KEYS) return;
+  arr.push('');
+  renderKeySlots();
+  // Focus ô mới
+  const inputs = $('gkeys-list').querySelectorAll('input');
+  if (inputs.length) inputs[inputs.length - 1].focus();
+}
+
+function removeKeySlot(idx) {
+  const arr = currentKeyArray();
+  if (arr.length <= 1) {
+    arr[0] = '';
+  } else {
+    arr.splice(idx, 1);
+  }
+  saveKeys();
+  renderKeySlots();
+}
+
+function onKeyInput(idx, val) {
+  currentKeyArray()[idx] = val.trim();
+  // Cập nhật class has-key
+  const inputs = $('gkeys-list').querySelectorAll('input');
+  if (inputs[idx]) inputs[idx].className = val.trim() ? 'has-key' : '';
+  const n = currentKeyArray().filter(k => k.trim()).length;
+  const total = currentKeyArray().length;
+  $('gkeys-hint').textContent = `${n}/${total} key đã nhập · hệ thống xoay vòng tự động`;
+  saveKeys();
+}
+
+function saveKeys() {
+  try {
+    localStorage.setItem('ocr_gemini_keys_v2', JSON.stringify(S.geminiApiKeys));
+    localStorage.setItem('ocr_groq_keys_v1',   JSON.stringify(S.groqApiKeys));
+  } catch {}
+}
+
+function loadKeys() {
+  try {
+    const g = localStorage.getItem('ocr_gemini_keys_v2');
+    if (g) { const a = JSON.parse(g); if (Array.isArray(a) && a.length) S.geminiApiKeys = a; }
+    const r = localStorage.getItem('ocr_groq_keys_v1');
+    if (r) { const a = JSON.parse(r); if (Array.isArray(a) && a.length) S.groqApiKeys = a; }
+  } catch {}
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   FILE MANAGEMENT
+═══════════════════════════════════════════════════════════════════ */
+function onDragOver(e) { e.preventDefault(); $('drop-zone').classList.add('drag-over'); }
+function onDragLeave()  { $('drop-zone').classList.remove('drag-over'); }
+function onDrop(e)      { e.preventDefault(); $('drop-zone').classList.remove('drag-over'); addFiles(e.dataTransfer.files); }
+function onFileSelect(e){ addFiles(e.target.files); e.target.value = ''; }
+function onAddMore(e)   { addFiles(e.target.files); e.target.value = ''; }
+
+function addFiles(fileList) {
+  Array.from(fileList).forEach(f => {
+    if (S.files.some(x => x.file.name === f.name && x.file.size === f.size)) return;
+    const thumbUrl = URL.createObjectURL(f);
+    S.files.push({ file: f, thumbUrl, docType: S.docType });
+  });
+  renderFileList();
+}
+
+function removeFile(idx) {
+  URL.revokeObjectURL(S.files[idx].thumbUrl);
+  S.files.splice(idx, 1);
+  renderFileList();
+}
+
+function renderFileList() {
+  const fl = $('file-list');
+  // Remove existing fl-item elements (keep the add-more input and button)
+  fl.querySelectorAll('.fl-item').forEach(el => el.remove());
+  const addMoreBtn = fl.querySelector('.fl-add-more');
+
+  if (S.files.length === 0) {
+    fl.classList.remove('has-files');
+    updateExtractBtn();
+    return;
+  }
+
+  fl.classList.add('has-files');
+  S.files.forEach((f, idx) => {
+    const div = document.createElement('div');
+    div.className = 'fl-item';
+    div.innerHTML = `
+      <img class="fl-thumb" src="${f.thumbUrl}" alt="">
+      <div class="fl-info">
+        <div class="fl-name">${esc(f.file.name)}</div>
+        <div class="fl-meta">${fmtBytes(f.file.size)} · ${f.file.type.replace('image/','').toUpperCase()}</div>
+      </div>
+      <div class="fl-dtype">
+        <button class="fdt${f.docType==='id_card'?' active':''}" onclick="setFileDocType(${idx},'id_card')">🪪 CCCD</button>
+        <button class="fdt${f.docType==='savings_book'?' active':''}" onclick="setFileDocType(${idx},'savings_book')">📘 STK</button>
+      </div>
+      <button class="fl-remove" onclick="removeFile(${idx})" title="Xóa">✕</button>`;
+    fl.insertBefore(div, addMoreBtn);
+  });
+  updateExtractBtn();
+}
+
+function setFileDocType(idx, type) {
+  S.files[idx].docType = type;
+  renderFileList();
+}
+
+function updateExtractBtn() {
+  const btn = $('extract-btn');
+  const n   = S.files.length;
+  btn.disabled = n === 0 || S.isProcessing;
+  $('btn-text').textContent = n > 1
+    ? `Trích Xuất Tất Cả (${n} ảnh)`
+    : 'Trích Xuất Dữ Liệu';
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   BATCH PROCESSING
+═══════════════════════════════════════════════════════════════════ */
+function startBatch() {
+  if (!S.files.length || S.isProcessing) return;
+  if ((S.engine === 'gemini' || S.engine === 'groq') &&
+      !currentKeyArray().some(k => k.trim())) {
+    const name = S.engine === 'groq' ? 'Groq' : 'Gemini';
+    showStatus('error', `Vui lòng nhập ít nhất 1 ${name} API key trước khi trích xuất.`);
+    return;
+  }
+  S.isProcessing = true;
+  S.pendingCount = S.files.length;
+  S.queue        = S.files.map(f => ({ ...f, status: 'waiting', pct: 0, msg: 'Đang chờ...', result: null, error: null }));
+
+  hideStatus();
+  renderQueuePanel();
+  updateExtractBtn();
+
+  // Gửi tất cả ảnh song song — mỗi ảnh có SSE riêng
+  S.queue.forEach((item, idx) => submitSingleFile(item, idx));
+}
+
+async function submitSingleFile(item, idx) {
+  item.status = 'processing';
+  item.pct    = 0;
+  item.msg    = 'Đang gửi ảnh lên server...';
+  updateQueueItem(idx);
+
+  try {
+    const fd = new FormData();
+    fd.append('image',    item.file);
+    fd.append('doc_type', item.docType);
+    fd.append('engine',   S.engine);
+    if (S.engine === 'gemini') {
+      fd.append('gemini_api_key', S.geminiApiKeys.filter(k => k.trim()).join(','));
+    } else if (S.engine === 'groq') {
+      fd.append('groq_api_key', S.groqApiKeys.filter(k => k.trim()).join(','));
+    }
+
+    const res = await fetch('/extract', { method: 'POST', body: fd });
+    const ct  = res.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) {
+      throw new Error(`Lỗi server (HTTP ${res.status})`);
+    }
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || `Lỗi ${res.status}`);
+
+    openSSE(data.job_id, idx);
+
+  } catch (err) {
+    item.status = 'error';
+    item.error  = err.message;
+    item.msg    = err.message;
+    updateQueueItem(idx);
+    addResultTab(idx, null, err.message);
+    checkAllDone();
+  }
+}
+
+function checkAllDone() {
+  S.pendingCount--;
+  if (S.pendingCount <= 0) {
+    S.isProcessing = false;
+    updateExtractBtn();
+  }
+}
+
+function openSSE(jobId, qIdx) {
+  const evtSrc = new EventSource(`/progress/${jobId}`);
+
+  evtSrc.onmessage = (e) => {
+    const event = JSON.parse(e.data);
+    const item  = S.queue[qIdx];
+
+    if (event.type === 'keepalive') return;
+
+    if (event.type === 'progress') {
+      item.pct = event.pct;
+      item.msg = event.message;
+      updateQueueItem(qIdx);
+      return;
+    }
+
+    evtSrc.close();
+
+    if (event.type === 'done') {
+      item.status = 'done';
+      item.result = event.result;
+      item.pct    = 100;
+      item.msg    = '';
+      updateQueueItem(qIdx);
+
+      const entry = {
+        result:   event.result,
+        filename: item.file.name,
+        thumbUrl: item.thumbUrl,
+      };
+      S.results.push(entry);
+      const resultIdx = S.results.length - 1;
+      addResultTab(qIdx, resultIdx, null);
+      saveHistory(event.result, item.file.name);
+      renderHistoryPanel();
+
+      // Auto-show this result
+      showResult(resultIdx);
+
+    } else if (event.type === 'error') {
+      item.status = 'error';
+      item.error  = event.error;
+      item.msg    = event.error;
+      updateQueueItem(qIdx);
+      addResultTab(qIdx, null, event.error);
+    }
+
+    checkAllDone();
+  };
+
+  evtSrc.onerror = () => {
+    evtSrc.close();
+    const item = S.queue[qIdx];
+    item.status = 'error';
+    item.msg    = 'Mất kết nối SSE';
+    updateQueueItem(qIdx);
+    addResultTab(qIdx, null, 'Mất kết nối');
+    checkAllDone();
+  };
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   QUEUE PANEL UI
+═══════════════════════════════════════════════════════════════════ */
+function renderQueuePanel() {
+  const panel = $('queue-panel');
+  panel.classList.add('visible');
+
+  const container = $('queue-items');
+  container.innerHTML = '';
+
+  S.queue.forEach((item, idx) => {
+    const div = document.createElement('div');
+    div.className = 'qi waiting';
+    div.id = `qi-${idx}`;
+    div.innerHTML = `
+      <span class="qi-icon">⏳</span>
+      <img class="qi-thumb" src="${item.thumbUrl}" alt="">
+      <div class="qi-body">
+        <div class="qi-name">${esc(item.file.name)}</div>
+        <div class="qi-bar-wrap">
+          <div class="qi-track"><div class="qi-fill" style="width:0%" id="qi-fill-${idx}"></div></div>
+          <span class="qi-msg" id="qi-msg-${idx}">Đang chờ...</span>
+        </div>
+      </div>
+      <span class="qi-badge wait" id="qi-badge-${idx}">Chờ</span>`;
+    container.appendChild(div);
+  });
+
+  updateQueueCounter();
+}
+
+function updateQueueItem(idx) {
+  const item   = S.queue[idx];
+  const el     = $(`qi-${idx}`);
+  const fill   = $(`qi-fill-${idx}`);
+  const msg    = $(`qi-msg-${idx}`);
+  const badge  = $(`qi-badge-${idx}`);
+  const icon   = el.querySelector('.qi-icon');
+  if (!el) return;
+
+  el.className = `qi ${item.status === 'error' ? 'error-item' : item.status}`;
+  fill.style.width = item.pct + '%';
+  msg.textContent  = item.msg;
+
+  if (item.status === 'waiting') {
+    icon.textContent = '⏳'; badge.textContent = 'Chờ'; badge.className = 'qi-badge wait';
+  } else if (item.status === 'processing') {
+    icon.textContent = '🔄'; badge.textContent = item.pct + '%'; badge.className = 'qi-badge medium';
+  } else if (item.status === 'done') {
+    const conf = item.result ? item.result.final_confidence : 0;
+    const cls  = confCls(conf);
+    icon.textContent   = '✅';
+    badge.textContent  = Math.round(conf * 100) + '%';
+    badge.className    = `qi-badge ${cls}`;
+  } else {
+    icon.textContent = '❌'; badge.textContent = 'Lỗi'; badge.className = 'qi-badge err';
+  }
+
+  updateQueueCounter();
+}
+
+function updateQueueCounter() {
+  const done  = S.queue.filter(x => x.status === 'done' || x.status === 'error').length;
+  $('queue-counter').textContent = `${done}/${S.queue.length} ảnh`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   RESULT TABS
+═══════════════════════════════════════════════════════════════════ */
+function addResultTab(qIdx, resultIdx, errorMsg) {
+  $('result-tabs-bar').classList.add('visible');
+  const scroll = $('rtabs-scroll');
+
+  const tab = document.createElement('div');
+  tab.className = 'rtab';
+  tab.id        = `rtab-${qIdx}`;
+
+  const filename = S.queue[qIdx].file.name;
+  const shortName = filename.length > 18 ? filename.slice(0,15) + '…' : filename;
+
+  if (errorMsg) {
+    tab.innerHTML = `
+      <span>❌</span>
+      <span class="rtab-name" title="${esc(filename)}">${esc(shortName)}</span>
+      <span class="rtab-conf err">Lỗi</span>`;
+    tab.onclick = () => showStatus('error', errorMsg);
+  } else {
+    const conf    = S.results[resultIdx].result.final_confidence;
+    const cls     = confCls(conf);
+    tab.innerHTML = `
+      <span>${DOC_META[S.queue[qIdx].docType]?.icon || '📄'}</span>
+      <span class="rtab-name" title="${esc(filename)}">${esc(shortName)}</span>
+      <span class="rtab-conf ${cls}">${Math.round(conf * 100)}%</span>`;
+    tab.onclick = () => { activateTab(qIdx); showResult(resultIdx); };
+  }
+  scroll.appendChild(tab);
+}
+
+function activateTab(qIdx) {
+  document.querySelectorAll('.rtab').forEach(t => t.classList.remove('active'));
+  const t = $(`rtab-${qIdx}`);
+  if (t) t.classList.add('active');
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   RENDER RESULT
+═══════════════════════════════════════════════════════════════════ */
+function showResult(idx) {
+  S.curResultIdx = idx;
+  const { result, filename, thumbUrl } = S.results[idx];
+  const meta = DOC_META[result.doc_type] || DOC_META.id_card;
+
+  // Header
+  $('res-icon').textContent  = meta.icon;
+  $('res-title-text').textContent = meta.title;
+  $('res-subtitle').textContent   =
+    `${result.plausible_fields}/${result.total_fields} trường hợp lệ · ${filename}`;
+
+  // Confidence badges
+  const fp = Math.round(result.final_confidence * 100);
+  $('conf-badges').innerHTML = `
+    <div class="cbadge"><span class="cbadge-lbl">Tổng hợp</span><span class="cbadge-val ${confCls(result.final_confidence)}">${fp}%</span></div>
+    <div class="cbadge"><span class="cbadge-lbl">OCR</span><span class="cbadge-val ${confCls(result.ocr_confidence)}">${Math.round(result.ocr_confidence*100)}%</span></div>
+    <div class="cbadge"><span class="cbadge-lbl">Phân tích</span><span class="cbadge-val ${confCls(result.parse_confidence)}">${Math.round(result.parse_confidence*100)}%</span></div>`;
+
+  // Confidence bars
+  $('conf-bars').innerHTML = `
+    ${cbarRow('Độ tin cậy tổng hợp', result.final_confidence)}
+    ${cbarRow('Độ tin cậy OCR',       result.ocr_confidence)}
+    ${cbarRow('Độ hợp lệ trường',     result.parse_confidence)}`;
+
+  // Images
+  $('img-original').src  = result.image_preview   || '';
+  $('img-annotated').src = result.image_annotated || '';
+  $('img-meta').innerHTML = `<span>📄 ${esc(filename)}</span>`;
+
+  // ROI annotation: Gemini không có ROI, PaddleOCR có
+  const noRoi = result.engine === 'gemini' || result.engine === 'groq';
+  $('roi-legend').style.display = noRoi ? 'none' : '';
+  $('roi-note').style.display   = noRoi ? 'block' : 'none';
+  if (noRoi) {
+    const ename = result.engine === 'groq' ? 'Groq LLaMA' : 'Gemini Flash';
+    $('roi-note').textContent = `🤖 ${ename} không hỗ trợ highlight ROI — hiển thị ảnh gốc`;
+  }
+
+  // Reset image tab to original
+  switchImgTab('original', document.querySelectorAll('.img-tab-btn')[0]);
+
+  // Plausible chip
+  const chip = $('plaus-chip');
+  chip.textContent = `${result.plausible_fields}/${result.total_fields} trường hợp lệ`;
+  chip.className   = 'plaus-chip' + (result.plausible_fields < result.total_fields ? ' warn' : '');
+
+  // Fields table
+  const tbody = document.querySelector('#fields-tbl tbody');
+  tbody.innerHTML = '';
+  result.fields.forEach(f => {
+    const pct    = f.confidence != null ? Math.round(f.confidence * 100) : null;
+    const cls    = f.confidence != null ? confCls(f.confidence) : 'none';
+    const isEmpty = !f.value || !f.value.trim();
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><span class="fkey"><span class="fdot ${cls}"></span>${esc(f.label)}</span></td>
+      <td><span class="fval${isEmpty ? ' empty' : ''}">${isEmpty ? '(không đọc được)' : esc(f.value)}</span></td>
+      <td>${pct != null ? `<span class="cchip ${cls}">${pct}%</span>` : `<span class="cchip none">—</span>`}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  // Khởi tạo chatbot cho result này
+  initChat(idx);
+
+  $('result-section').classList.add('visible');
+  $('result-section').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function switchImgTab(which, btn) {
+  document.querySelectorAll('.img-tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.img-pane').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  $(`pane-${which}`).classList.add('active');
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   EXPORT
+═══════════════════════════════════════════════════════════════════ */
+function exportJSON() {
+  if (S.curResultIdx < 0) return;
+  const { result, filename } = S.results[S.curResultIdx];
+  const exportData = {
+    filename,
+    doc_type:         result.doc_type,
+    final_confidence: result.final_confidence,
+    ocr_confidence:   result.ocr_confidence,
+    parse_confidence: result.parse_confidence,
+    plausible_fields: result.plausible_fields,
+    total_fields:     result.total_fields,
+    fields:           result.fields.map(f => ({ label: f.label, value: f.value, confidence: f.confidence })),
+  };
+  downloadFile(
+    JSON.stringify(exportData, null, 2),
+    filename.replace(/\.[^.]+$/, '') + '_ocr.json',
+    'application/json'
+  );
+}
+
+function exportCSV() {
+  if (S.curResultIdx < 0) return;
+  const { result, filename } = S.results[S.curResultIdx];
+  const rows = [['Trường', 'Giá trị', 'Confidence']];
+  result.fields.forEach(f => rows.push([f.label, f.value || '', f.confidence != null ? Math.round(f.confidence*100)+'%' : '—']));
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  downloadFile(
+    '﻿' + csv,
+    filename.replace(/\.[^.]+$/, '') + '_ocr.csv',
+    'text/csv;charset=utf-8'
+  );
+}
+
+function downloadFile(content, filename, mime) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], { type: mime }));
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   COPY
+═══════════════════════════════════════════════════════════════════ */
+function copyResult() {
+  if (S.curResultIdx < 0) return;
+  const { result, filename } = S.results[S.curResultIdx];
+  const meta = DOC_META[result.doc_type] || DOC_META.id_card;
+  let text = `${meta.title}\n${'-'.repeat(38)}\n`;
+  result.fields.forEach(f => {
+    const pct = f.confidence != null ? ` (${Math.round(f.confidence*100)}%)` : '';
+    text += `${f.label.padEnd(22)}: ${f.value || '—'}${pct}\n`;
+  });
+  text += `${'-'.repeat(38)}\n`;
+  text += `Độ tin cậy tổng hợp : ${Math.round(result.final_confidence*100)}%\n`;
+  text += `Trường hợp lệ       : ${result.plausible_fields}/${result.total_fields}\n`;
+
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = $('copy-btn');
+    btn.classList.add('copied');
+    setTimeout(() => btn.classList.remove('copied'), 2000);
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CHATBOT
+═══════════════════════════════════════════════════════════════════ */
+let _chatSending = false;
+
+const CHAT_SUGGESTIONS = {
+  id_card: [
+    'Khách hàng bao nhiêu tuổi?',
+    'CCCD còn hạn sử dụng không?',
+    'Quê quán ở tỉnh nào?',
+    'Họ tên đầy đủ là gì?',
+  ],
+  savings_book: [
+    'Số dư hiện tại là bao nhiêu?',
+    'Lãi suất là bao nhiêu?',
+    'Nội dung giao dịch là gì?',
+    'Giao dịch diễn ra ngày nào?',
+  ],
+};
+
+function _getGroqKey() {
+  return (S.groqApiKeys || []).find(k => k.trim()) || '';
+}
+
+function initChat(resultIdx) {
+  const result = S.results[resultIdx];
+  if (!result.chatHistory) result.chatHistory = [];
+
+  const hasKey = !!_getGroqKey();
+  $('chat-no-key').style.display    = hasKey ? 'none' : 'flex';
+  $('chat-input-area').style.display = hasKey ? '' : 'none';
+
+  const msgs = $('chat-messages');
+  msgs.innerHTML = '';
+
+  if (result.chatHistory.length === 0) {
+    // Hiển thị gợi ý câu hỏi
+    const sugs = CHAT_SUGGESTIONS[result.result.doc_type] || [];
+    msgs.innerHTML = `
+      <div class="chat-empty">
+        <p>Hỏi tôi bất cứ điều gì về dữ liệu vừa trích xuất.</p>
+        <div class="chat-suggestions">
+          ${sugs.map(s => `<button class="chat-sug" onclick="fillChat('${s}')">${s}</button>`).join('')}
+        </div>
+      </div>`;
+  } else {
+    result.chatHistory.forEach(m => {
+      if (m.role !== 'system') appendChatBubble(m.role, m.content);
+    });
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+}
+
+function fillChat(text) {
+  $('chat-input').value = text;
+  $('chat-input').focus();
+}
+
+function appendChatBubble(role, content) {
+  const msgs = $('chat-messages');
+  // Xóa chat-empty nếu còn
+  const empty = msgs.querySelector('.chat-empty');
+  if (empty) empty.remove();
+
+  const div = document.createElement('div');
+  div.className = `chat-msg ${role === 'user' ? 'user' : role === 'error' ? 'error-msg' : 'assistant'}`;
+  const avatar = role === 'user' ? '🧑' : role === 'error' ? '⚠️' : '🤖';
+  div.innerHTML = `
+    <div class="chat-avatar">${avatar}</div>
+    <div class="chat-bubble">${esc(content)}</div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+
+function appendTyping() {
+  const msgs = $('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'chat-msg assistant';
+  div.id = 'chat-typing';
+  div.innerHTML = `
+    <div class="chat-avatar">🤖</div>
+    <div class="chat-bubble">
+      <div class="chat-typing-dots"><span></span><span></span><span></span></div>
+    </div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function removeTyping() {
+  const el = $('chat-typing');
+  if (el) el.remove();
+}
+
+async function sendChat() {
+  if (_chatSending) return;
+  const input = $('chat-input');
+  const msg   = input.value.trim();
+  if (!msg) return;
+
+  const groqKey = _getGroqKey();
+  if (!groqKey) {
+    $('chat-no-key').style.display    = 'flex';
+    $('chat-input-area').style.display = 'none';
+    return;
+  }
+
+  const result = S.results[S.curResultIdx];
+  if (!result) return;
+  if (!result.chatHistory) result.chatHistory = [];
+
+  // Thêm vào history NGAY để tồn tại qua mọi re-render
+  result.chatHistory.push({ role: 'user', content: msg });
+
+  input.value = '';
+  appendChatBubble('user', msg);
+
+  _chatSending = true;
+  $('chat-send-btn').disabled = true;
+  appendTyping();
+
+  try {
+    const res = await fetch('/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message:       msg,
+        fields:        result.result.fields,
+        doc_type:      result.result.doc_type,
+        groq_api_key:  groqKey,
+        history:       result.chatHistory.slice(0, -1).slice(-10), // bỏ user msg vừa push
+      }),
+    });
+    const data = await res.json();
+    removeTyping();
+
+    if (data.error) {
+      appendChatBubble('error', data.error);
+      result.chatHistory.pop(); // huỷ user msg nếu thất bại
+    } else {
+      appendChatBubble('assistant', data.reply);
+      result.chatHistory.push({ role: 'assistant', content: data.reply });
+    }
+  } catch (err) {
+    removeTyping();
+    appendChatBubble('error', 'Lỗi kết nối: ' + err.message);
+    result.chatHistory.pop(); // huỷ user msg nếu thất bại
+  } finally {
+    _chatSending = false;
+    $('chat-send-btn').disabled = false;
+    input.focus();
+  }
+}
+
+function clearChat() {
+  const result = S.results[S.curResultIdx];
+  if (result) result.chatHistory = [];
+  initChat(S.curResultIdx);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   HISTORY (localStorage)
+═══════════════════════════════════════════════════════════════════ */
+function getHistory()    { try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { return []; } }
+function setHistory(arr) { try { localStorage.setItem(HISTORY_KEY, JSON.stringify(arr)); } catch {} }
+
+function saveHistory(result, filename) {
+  const entry = {
+    id:               Date.now() + Math.random(),
+    filename,
+    doc_type:         result.doc_type,
+    timestamp:        new Date().toLocaleString('vi-VN'),
+    final_confidence: result.final_confidence,
+    plausible_fields: result.plausible_fields,
+    total_fields:     result.total_fields,
+    fields:           result.fields.map(f => ({ label: f.label, value: f.value, confidence: f.confidence })),
+  };
+  const h = getHistory();
+  h.unshift(entry);
+  if (h.length > 100) h.length = 100;
+  setHistory(h);
+}
+
+function renderHistoryPanel() {
+  const h = getHistory();
+  $('hist-count').textContent = h.length + ' ảnh';
+
+  if (!h.length) {
+    $('hist-content').innerHTML = '<div class="hist-empty">Chưa có lịch sử trong phiên này.</div>';
+    return;
+  }
+
+  const docLabel = { id_card: 'CCCD', savings_book: 'Sổ TK' };
+
+  let html = `<div class="hist-table-wrap"><table class="hist-tbl">
+    <thead><tr>
+      <th>#</th><th>Tên file</th><th>Loại</th><th>Confidence</th><th>Thời gian</th>
+    </tr></thead><tbody>`;
+
+  h.forEach((entry, i) => {
+    const pct = Math.round(entry.final_confidence * 100);
+    const cls = confCls(entry.final_confidence);
+    html += `
+      <tr class="hist-expand" onclick="toggleHistRow(${i})">
+        <td>${i + 1}</td>
+        <td>${esc(entry.filename)}</td>
+        <td>${docLabel[entry.doc_type] || entry.doc_type}</td>
+        <td><span class="cchip ${cls}">${pct}%</span> <span style="font-size:11px;color:var(--muted)">${entry.plausible_fields}/${entry.total_fields} trường</span></td>
+        <td style="font-size:11.5px;color:var(--muted)">${esc(entry.timestamp)}</td>
+      </tr>
+      <tr><td colspan="5" style="padding:0">
+        <div class="hist-fields" id="hf-${i}">
+          <div class="hist-fields-grid">${entry.fields.map(f => `
+            <div class="hf-item">
+              <div class="hf-label">${esc(f.label)}</div>
+              <div class="hf-value${!f.value ? ' empty' : ''}">${esc(f.value || '(trống)')}</div>
+            </div>`).join('')}
+          </div>
+        </div>
+      </td></tr>`;
+  });
+
+  html += '</tbody></table></div>';
+  $('hist-content').innerHTML = html;
+}
+
+function toggleHistRow(i) {
+  const el = $(`hf-${i}`);
+  if (el) el.classList.toggle('open');
+}
+
+function toggleHistory() {
+  const body  = $('history-body');
+  const arrow = $('hist-arrow');
+  const open  = body.classList.toggle('open');
+  arrow.classList.toggle('open', open);
+  if (open) renderHistoryPanel();
+}
+
+function clearHistory() {
+  if (!confirm('Xóa toàn bộ lịch sử session?')) return;
+  setHistory([]);
+  renderHistoryPanel();
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   RESET
+═══════════════════════════════════════════════════════════════════ */
+function resetAll() {
+  S.files.forEach(f => URL.revokeObjectURL(f.thumbUrl));
+  S.files        = [];
+  S.queue        = [];
+  S.results      = [];
+  S.curResultIdx = -1;
+  S.isProcessing = false;
+  S.pendingCount = 0;
+  // Giữ nguyên engine và danh sách API key khi làm mới
+
+  $('file-list').classList.remove('has-files');
+  $('file-list').querySelectorAll('.fl-item').forEach(el => el.remove());
+  $('file-input').value = '';
+  $('queue-panel').classList.remove('visible');
+  $('result-tabs-bar').classList.remove('visible');
+  $('rtabs-scroll').innerHTML = '';
+  $('result-section').classList.remove('visible');
+  $('queue-items').innerHTML  = '';
+  hideStatus();
+  updateExtractBtn();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   STATUS BANNER
+═══════════════════════════════════════════════════════════════════ */
+function showStatus(type, msg) {
+  const el = $('status-banner');
+  el.className = type;
+  $('status-icon').textContent = type === 'error' ? '⚠️' : 'ℹ️';
+  $('status-msg').textContent  = msg;
+}
+function hideStatus() {
+  $('status-banner').className       = '';
+  $('status-banner').style.display   = '';
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════════════════════════════ */
+function $(id)   { return document.getElementById(id); }
+function esc(s)  { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmtBytes(b) {
+  if (b < 1024)      return b + ' B';
+  if (b < 1048576)   return (b/1024).toFixed(1) + ' KB';
+  return (b/1048576).toFixed(2) + ' MB';
+}
+function confCls(v) {
+  if (v == null) return 'none';
+  if (v >= 0.80) return 'high';
+  if (v >= 0.50) return 'medium';
+  return 'low';
+}
+function cbarRow(label, value) {
+  const pct = Math.round(value * 100);
+  const cls = confCls(value);
+  return `<div class="cbar-row">
+    <span class="cbar-lbl">${label}</span>
+    <div class="cbar-track"><div class="cbar-fill ${cls}" style="width:${pct}%"></div></div>
+    <span class="cbar-pct ${cls}">${pct}%</span>
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════════════════════ */
+(function init() {
+  renderHistoryPanel();
+  $('hist-count').textContent = getHistory().length + ' ảnh';
+  loadKeys();
+  renderKeySlots();
+})();
+</script>
+</body>
+</html>

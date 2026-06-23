@@ -8,6 +8,9 @@ logs/
 dbt_bank/target/
 dbt_bank/dbt_packages/
 dbt_bank/logs/
+dbt_bank/profiles.yml
+dbt_bank/.user.yml
+dbt_bank/seeds/dim_date.csv.bak
 
 .vscode/
 .DS_Store
@@ -17,7 +20,13 @@ dbt_bank/logs/
 .venv_ocr/
 **/archived/
 **/.claude/
+.claude/
+CLAUDE.md
+
 # Data directories (large files)
 data/
 output/
+
+# Ảnh người dùng upload tạm của web demo
+demo_web/uploads/
 

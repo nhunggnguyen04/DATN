@@ -1,4 +1,5 @@
 # Tài Liệu Thiết Kế BI – Power BI Dashboard
+
 ## Dự án: Phân tích Giao dịch Thẻ Tín dụng Ngân hàng
 
 **Phiên bản:** 2.0 (hiệu chỉnh khớp datamart thực tế)
@@ -20,16 +21,17 @@ dim_merchant ──┤
 dim_mcc ───────┘
 ```
 
-| Bảng | Loại | Mô tả | Khóa nối với fact |
-|---|---|---|---|
-| `fact_transaction` | Fact | Bảng sự kiện chính, ~1 row/giao dịch | — |
-| `dim_customer` | Dimension | Hồ sơ KH, phân khúc thu nhập & rủi ro (current state) | `customer_id` |
-| `dim_card` | Dimension | Thông tin thẻ, chip, hạn mức, PIN (current state) | `card_id` |
-| `dim_date` | Dimension | Bộ lịch (model động, không phải seed) | `date_key` |
-| `dim_merchant` | Dimension | Địa điểm merchant (location mới nhất) | `merchant_id` |
-| `dim_mcc` | Dimension | Danh mục ngành hàng (MCC) | `mcc_id` |
+| Bảng                | Loại     | Mô tả                                                     | Khóa nối với fact |
+| -------------------- | --------- | ----------------------------------------------------------- | -------------------- |
+| `fact_transaction` | Fact      | Bảng sự kiện chính, ~1 row/giao dịch                   | —                   |
+| `dim_customer`     | Dimension | Hồ sơ KH, phân khúc thu nhập & rủi ro (current state) | `customer_id`      |
+| `dim_card`         | Dimension | Thông tin thẻ, chip, hạn mức, PIN (current state)       | `card_id`          |
+| `dim_date`         | Dimension | Bộ lịch (model động, không phải seed)                 | `date_key`         |
+| `dim_merchant`     | Dimension | Địa điểm merchant (location mới nhất)                 | `merchant_id`      |
+| `dim_mcc`          | Dimension | Danh mục ngành hàng (MCC)                                | `mcc_id`           |
 
 > **Quan trọng (khớp code thật):**
+>
 > - `fact_transaction` nối với dim bằng **natural key** (`customer_id`, `card_id`, `merchant_id`, `mcc_id`, `date_key`) — **không** dùng surrogate `*_key`. Test `relationships` trong `models/gold/schema.yml` xác nhận điều này.
 > - `dim_date` là **model động** (`dim_date.sql`): date-spine từ 2022-01-01 đến 3 năm sau ngày chạy. Cần **Mark as Date Table** theo `full_date` trong Power BI.
 > - Các dimension chỉ giữ **trạng thái mới nhất** (SCD2 active). Không có lịch sử credit_score/DTI ở Gold → các KPI cần xu hướng theo thời gian của thuộc tính KH không tính được trực tiếp (xem §7).
@@ -50,16 +52,17 @@ dim_mcc ───────┘
 ## 2. Chủ đề CD1 – Phân Khúc Khách Hàng & Marketing Cá Nhân Hóa
 
 ### 2.1 Mục tiêu nghiệp vụ
+
 > Tìm ra nhóm khách hàng tiềm năng để **up-sell thẻ tín dụng** hoặc **mời chào gói vay phù hợp** dựa trên hành vi chi tiêu, hồ sơ tài chính và phân khúc rủi ro.
 
 ### 2.2 Đối tượng sử dụng dashboard
 
-| Vai trò | Nhu cầu chính | Tần suất xem | Trang quan tâm |
-|---|---|---|---|
-| **Product Manager (Thẻ & Vay)** | Xác định segment để thiết kế sản phẩm, định cỡ thị trường | Hàng tuần | Trang 1 |
-| **Marketing Analyst** | Lọc & export danh sách target campaign (theo `customer_id`) | Hàng ngày | Trang 2 |
-| **Relationship Manager** | Xem hành vi nhóm Premium/High để chăm sóc cá nhân hóa | Theo yêu cầu | Trang 3 |
-| **Ban lãnh đạo (C-level)** | Theo dõi ARPU/giá trị tệp KH theo quý | Hàng tháng | Header trang 1 |
+| Vai trò                               | Nhu cầu chính                                                          | Tần suất xem | Trang quan tâm |
+| -------------------------------------- | ------------------------------------------------------------------------ | -------------- | --------------- |
+| **Product Manager (Thẻ & Vay)** | Xác định segment để thiết kế sản phẩm, định cỡ thị trường | Hàng tuần    | Trang 1         |
+| **Marketing Analyst**            | Lọc & export danh sách target campaign (theo `customer_id`)          | Hàng ngày    | Trang 2         |
+| **Relationship Manager**         | Xem hành vi nhóm Premium/High để chăm sóc cá nhân hóa           | Theo yêu cầu | Trang 3         |
+| **Ban lãnh đạo (C-level)**    | Theo dõi ARPU/giá trị tệp KH theo quý                               | Hàng tháng   | Header trang 1  |
 
 ### 2.3 KPI Đề xuất (đã hiệu chỉnh theo cột thật)
 
@@ -67,31 +70,31 @@ Cờ khả thi: ✅ dùng ngay · ⚠️ dùng được nhưng có lưu ý.
 
 #### Nhóm Tổng quan (Header Cards)
 
-| # | Tên KPI | Công thức DAX | Ý nghĩa | Cờ |
-|---|---|---|---|---|
-| C1 | **KH active** | `DISTINCTCOUNT(fact_transaction[customer_id])` | KH có ≥1 giao dịch trong kỳ lọc | ✅ |
-| C2 | **Tổng chi tiêu** | `SUM(fact_transaction[amount])` | Doanh số toàn tệp | ✅ |
-| C3 | **ARPU** | `DIVIDE([C2], [C1])` | Doanh thu bình quân/KH active | ✅ |
-| C4 | **% KH Premium** | `DIVIDE(CALCULATE(COUNTROWS(dim_customer), dim_customer[income_segment]="Premium"), COUNTROWS(dim_customer))` | Chất lượng tệp KH. **Mẫu số = toàn danh mục**, khác C1 (active) — không so trực tiếp | ⚠️ |
-| C5 | **Số thẻ bq/KH** | `DIVIDE(DISTINCTCOUNT(fact_transaction[card_id]), [C1])` | Dư địa up-sell thêm thẻ | ✅ |
+| #  | Tên KPI                  | Công thức DAX                                                                                                                      | Ý nghĩa                                                                                              | Cờ  |
+| -- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ | ---- |
+| C1 | **KH active**       | `DISTINCTCOUNT('gold fact_transaction'[customer_id])`                                                                              | KH có ≥1 giao dịch trong kỳ lọc                                                                   | ✅   |
+| C2 | **Tổng chi tiêu** | `SUM('gold fact_transaction'[amount])`                                                                                             | Doanh số toàn tệp                                                                                   | ✅   |
+| C3 | **ARPU**            | `DIVIDE([C2], [C1])`                                                                                                               | Doanh thu bình quân/KH active                                                                        | ✅   |
+| C4 | **% KH Premium**    | `DIVIDE(CALCULATE(COUNTROWS('gold dim_customer'), 'gold dim_customer'[income_segment]="Premium"), COUNTROWS('gold dim_customer'))` | Chất lượng tệp KH.**Mẫu số = toàn danh mục**, khác C1 (active) — không so trực tiếp | ⚠️ |
+| C5 | **Số thẻ bq/KH**  | `DIVIDE(DISTINCTCOUNT('gold fact_transaction'[card_id]), [C1])`                                                                    | Dư địa up-sell thêm thẻ                                                                           | ✅   |
 
 #### Nhóm Phân khúc & Tiềm năng up-sell
 
-| # | Tên KPI | Công thức DAX | Ý nghĩa | Cờ |
-|---|---|---|---|---|
-| C6 | **KH đủ ĐK up-sell thẻ** | `CALCULATE(COUNTROWS(dim_customer), dim_customer[credit_risk_tier] IN {"Good","Excellent"}, dim_customer[num_credit_cards] < 3)` | Danh sách mời nâng hạng/mở thêm thẻ (đã bỏ điều kiện "median income" vì DAX nặng) | ✅ |
-| C7 | **KH đủ ĐK mời vay** | `CALCULATE(COUNTROWS(dim_customer), dim_customer[debt_to_income_ratio] < 0.3, dim_customer[credit_risk_tier] IN {"Good","Excellent"})` | Khả năng trả nợ tốt + còn dư địa nợ | ✅ |
-| C8 | **% KH sắp nghỉ hưu (≤5 năm)** | `DIVIDE(COUNTROWS(FILTER(dim_customer, dim_customer[years_to_retirement]<=5 && dim_customer[years_to_retirement]>=0)), COUNTROWS(dim_customer))` | Segment cho gói tích lũy/bảo hiểm hưu trí | ✅ |
-| C9 | **Tổng dư nợ danh mục** | `SUM(dim_customer[total_debt])` | Exposure toàn danh mục | ✅ |
-| C10 | **CLV proxy (12 tháng)** | `[C3] * 12` | **Proxy thô** — ghi rõ giả định; bản tốt hơn: chi tiêu bq tháng × kỳ vọng gắn bó | ⚠️ |
+| #   | Tên KPI                                  | Công thức DAX                                                                                                                                                                | Ý nghĩa                                                                                              | Cờ  |
+| --- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ | ---- |
+| C6  | **KH đủ ĐK up-sell thẻ**        | `CALCULATE([Số KH theo Gợi ý], 'Gợi ý Sản phẩm'[Product_Suggestion] = "Up-sell: Thẻ Platinum") + CALCULATE([Số KH theo Gợi ý], 'Gợi ý Sản phẩm'[Product_Suggestion] = "Up-sell: Tăng hạn mức")` | Tái dụng measure `[Số KH theo Gợi ý]` qua bảng phụ `Gợi ý Sản phẩm` — số luôn khớp bar chart | ✅   |
+| C7  | **KH đủ ĐK mời vay**            | `CALCULATE([Số KH theo Gợi ý], 'Gợi ý Sản phẩm'[Product_Suggestion] = "Cross-sell: Vay tiêu dùng lãi suất ưu đãi")`                                                  | Tái dụng measure `[Số KH theo Gợi ý]` qua bảng phụ `Gợi ý Sản phẩm` — số luôn khớp bar chart | ✅   |
+| C8  | **% KH sắp nghỉ hưu (≤5 năm)** | `DIVIDE(COUNTROWS(FILTER('gold dim_customer', 'gold dim_customer'[years_to_retirement]<=5 && 'gold dim_customer'[years_to_retirement]>=0)), COUNTROWS('gold dim_customer'))` | Segment cho gói tích lũy/bảo hiểm hưu trí                                                       | ✅   |
+| C9  | **Tổng dư nợ danh mục**         | `SUM('gold dim_customer'[total_debt])`                                                                                                                                       | Exposure toàn danh mục                                                                               | ✅   |
+| C10 | **CLV proxy (12 tháng)**           | `[C3] * 12`                                                                                                                                                                  | **Proxy thô** — ghi rõ giả định; bản tốt hơn: chi tiêu bq tháng × kỳ vọng gắn bó | ⚠️ |
 
 #### Nhóm Hành vi chi tiêu
 
-| # | Tên KPI | Công thức DAX | Ý nghĩa | Cờ |
-|---|---|---|---|---|
-| C11 | **Top 3 MCC chi tiêu** | `TOPN(3, VALUES(dim_mcc[mcc_description]), [C2], DESC)` | Sở thích chi tiêu theo phân khúc | ✅ |
-| C12 | **% GD cuối tuần** | `DIVIDE(CALCULATE(COUNTROWS(fact_transaction), dim_date[is_weekend]=TRUE()), [Total Transactions])` | Hành vi leisure vs business (lưu ý: `is_weekend` ở **dim_date**, không ở fact) | ✅ |
-| C13 | **% dùng chip** | `DIVIDE(CALCULATE(COUNTROWS(fact_transaction), fact_transaction[is_chip_used]=1), [Total Transactions])` | Proxy nhóm KH am hiểu/cẩn trọng | ✅ |
+| #   | Tên KPI                      | Công thức DAX                                                                                                          | Ý nghĩa                                                                                   | Cờ |
+| --- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- | --- |
+| C11 | **Top 3 MCC chi tiêu** | `TOPN(3, VALUES('gold dim_mcc'[mcc_description]), [C2], DESC)`                                                         | Sở thích chi tiêu theo phân khúc                                                       | ✅  |
+| C12 | **% GD cuối tuần**    | `DIVIDE(CALCULATE(COUNTROWS('gold fact_transaction'), 'gold dim_date'[is_weekend]=TRUE()), [Total Transactions])`      | Hành vi leisure vs business (lưu ý:`is_weekend` ở **dim_date**, không ở fact) | ✅  |
+| C13 | **% dùng chip**        | `DIVIDE(CALCULATE(COUNTROWS('gold fact_transaction'), 'gold fact_transaction'[is_chip_used]=1), [Total Transactions])` | Proxy nhóm KH am hiểu/cẩn trọng                                                         | ✅  |
 
 ### 2.4 Thiết kế trang Dashboard CD1
 
@@ -123,32 +126,42 @@ Cờ khả thi: ✅ dùng ngay · ⚠️ dùng được nhưng có lưu ý.
 ┌────────────────────────────────────────────────────────────────┐
 │  [SLICER: income_segment] [SLICER: credit_risk_tier]           │
 │  [SLICER: years_to_retirement range] [SLICER: num_credit_cards]│
+├──────────────────────┬──────────────────────┬──────────────────┤
+│  KH Up-sell: [C6]    │  KH Mời vay: [C7]    │  CLV tổng        │
+├──────────────────────┴──────────────────────┴──────────────────┤
+│  [Bar ngang: Số KH theo Gợi ý sản phẩm]                        │
+│   Y = Product_Suggestion | X = [Số KH theo Gợi ý]             │
+│   Màu xám cho nhãn "Theo dõi – chưa đủ điều kiện"             │
 ├────────────────────────────────────────────────────────────────┤
-│  Số KH đủ ĐK up-sell: [C6]   Số KH mời vay: [C7]   CLV tổng   │
-├─────────────────────────────────────────────────────────────────┤
 │  [Table chi tiết: customer_id | income_segment | credit_risk_tier│
 │   | yearly_income | num_credit_cards | debt_to_income_ratio     │
-│   | Gợi ý sản phẩm]  → Export to Excel cho campaign team        │
-├─────────────────────────────────────────────────────────────────┤
+│   | Product_Suggestion]  → Export to Excel cho campaign team    │
+├────────────────────────────────────────────────────────────────┤
 │  [Map: phân bổ KH theo latitude/longitude]                     │
 │   Màu = income_segment, Size = tổng chi tiêu                    │
-└─────────────────────────────────────────────────────────────────┘
+└────────────────────────────────────────────────────────────────┘
 ```
 
-**Logic "Gợi ý sản phẩm" (DAX Calculated Column — tất cả cột đều tồn tại thật):**
+> **Luồng logic Trang 2 (quan trọng):**
+>
+> ```
+> Product_Suggestion (Calculated Column trên 'gold dim_customer')
+>         │
+>         ├── "Up-sell: Thẻ Platinum"             ┐
+>         ├── "Up-sell: Tăng hạn mức"             ┘→ C6 (KH Up-sell)
+>         │
+>         ├── "Cross-sell: Vay tiêu dùng..."      → C7 (KH Mời vay)
+>         ├── "Cross-sell: Gói Tích lũy Hưu trí"  → (theo dõi riêng nếu cần)
+>         │
+>         └── "Theo dõi – chưa đủ điều kiện"      → chưa đủ điều kiện
+> ```
+>
+> - **Bảng phụ `Gợi ý Sản phẩm`** (DATATABLE, không nối quan hệ với fact): chứa 5 nhãn `Product_Suggestion` dùng làm trục Y cho bar chart.
+> - **Measure `Số KH theo Gợi ý`**: dùng `SELECTEDVALUE('Gợi ý Sản phẩm'[Product_Suggestion])` + `SWITCH` để đếm KH khớp từng nhãn theo điều kiện gốc.
+> - **C6/C7** tái dụng measure trên bằng `CALCULATE([Số KH theo Gợi ý], 'Gợi ý Sản phẩm'[Product_Suggestion] = "...")` → số KPI card luôn khớp bar chart, không viết lại điều kiện.
+
 ```dax
-Product_Suggestion =
-SWITCH(TRUE(),
-    dim_customer[credit_risk_tier] = "Excellent"
-        && dim_customer[num_credit_cards] < 2, "Up-sell: Thẻ Platinum",
-    dim_customer[income_segment] = "Premium"
-        && dim_customer[years_to_retirement] <= 5, "Cross-sell: Gói Tích lũy Hưu trí",
-    dim_customer[debt_to_income_ratio] < 0.3
-        && dim_customer[credit_risk_tier] IN {"Good","Excellent"}, "Up-sell: Tăng hạn mức",
-    dim_customer[income_segment] IN {"Low","Medium"}
-        && dim_customer[credit_score] > 650, "Cross-sell: Vay tiêu dùng lãi suất ưu đãi",
-    "Theo dõi – chưa đủ điều kiện"
-)
+
 ```
 
 #### Trang 3: "Hành vi Chi tiêu theo Segment" (Deep-dive)
@@ -169,35 +182,36 @@ SWITCH(TRUE(),
 
 ### 2.5 Bộ lọc & Slicer CD1
 
-| Slicer | Nguồn trường | Loại control | Ghi chú |
-|---|---|---|---|
-| Năm | `dim_date[year]` | Dropdown | Multi-select |
-| Quý | `dim_date[quarter]` | Button (1/2/3/4) | |
-| Tháng | `dim_date[month_name]` | Dropdown | |
-| Phân khúc thu nhập | `dim_customer[income_segment]` | Checkbox (Low/Medium/High/Premium) | Mặc định All |
-| Bậc rủi ro tín dụng | `dim_customer[credit_risk_tier]` | Checkbox (Poor/Fair/Good/Excellent) | Màu đỏ→xanh |
-| Giới tính | `dim_customer[gender]` | Toggle | |
-| Số thẻ phát hành | `dim_card[num_cards_issued]` | Range slider | |
-| Năm còn lại đến hưu | `dim_customer[years_to_retirement]` | Range slider | |
-| Danh mục MCC | `dim_mcc[mcc_description]` | Search dropdown | |
-| Trạng thái giao dịch | `fact_transaction[has_error]` | Toggle (Tất cả/Thành công/Lỗi) | `has_error` = 0/1 |
+| Slicer                    | Nguồn trường                              | Loại control                       | Ghi chú            |
+| ------------------------- | -------------------------------------------- | ----------------------------------- | ------------------- |
+| Năm                      | `'gold dim_date'[year]`                    | Dropdown                            | Multi-select        |
+| Quý                      | `'gold dim_date'[quarter]`                 | Button (1/2/3/4)                    |                     |
+| Tháng                    | `'gold dim_date'[month_name]`              | Dropdown                            |                     |
+| Phân khúc thu nhập     | `'gold dim_customer'[income_segment]`      | Checkbox (Low/Medium/High/Premium)  | Mặc định All     |
+| Bậc rủi ro tín dụng   | `'gold dim_customer'[credit_risk_tier]`    | Checkbox (Poor/Fair/Good/Excellent) | Màu đỏ→xanh     |
+| Giới tính               | `'gold dim_customer'[gender]`              | Toggle                              |                     |
+| Số thẻ phát hành      | `'gold dim_card'[num_cards_issued]`        | Range slider                        |                     |
+| Năm còn lại đến hưu | `'gold dim_customer'[years_to_retirement]` | Range slider                        |                     |
+| Danh mục MCC             | `'gold dim_mcc'[mcc_description]`          | Search dropdown                     |                     |
+| Trạng thái giao dịch   | `'gold fact_transaction'[has_error]`       | Toggle (Tất cả/Thành công/Lỗi) | `has_error` = 0/1 |
 
 ---
 
 ## 3. Chủ đề CD2 – Phân tích Giao dịch & Quản trị Rủi ro
 
 ### 3.1 Mục tiêu nghiệp vụ
+
 > **Tối ưu trải nghiệm người dùng** (giảm lỗi PIN, tăng tỷ lệ chip transaction) và **xây dựng hàng rào ngăn chặn rủi ro vỡ nợ** bằng các tín hiệu cảnh báo sớm (Early Warning Signals – EWS).
 
 ### 3.2 Đối tượng sử dụng dashboard
 
-| Vai trò | Nhu cầu chính | Tần suất xem | Trang quan tâm |
-|---|---|---|---|
-| **Operations Manager** | Theo dõi lỗi GD, hiệu suất chip vs swipe | Hàng ngày | Trang 1 |
-| **Risk Officer / Credit Analyst** | Giám sát danh mục, phát hiện KH rủi ro vỡ nợ | Hàng ngày | Trang 3 |
-| **Fraud Analyst** | Phát hiện GD bất thường theo địa lý/giá trị | Ngày | Trang 2 |
-| **Customer Experience Team** | Phân tích nguyên nhân lỗi để giảm lỗi PIN | Hàng tuần | Trang 1 + 2 |
-| **Chief Risk Officer (CRO)** | Bức tranh rủi ro danh mục tổng | Hàng tuần | Header + Funnel trang 3 |
+| Vai trò                                | Nhu cầu chính                                       | Tần suất xem | Trang quan tâm         |
+| --------------------------------------- | ----------------------------------------------------- | -------------- | ----------------------- |
+| **Operations Manager**            | Theo dõi lỗi GD, hiệu suất chip vs swipe          | Hàng ngày    | Trang 1                 |
+| **Risk Officer / Credit Analyst** | Giám sát danh mục, phát hiện KH rủi ro vỡ nợ  | Hàng ngày    | Trang 3                 |
+| **Fraud Analyst**                 | Phát hiện GD bất thường theo địa lý/giá trị | Ngày          | Trang 2                 |
+| **Customer Experience Team**      | Phân tích nguyên nhân lỗi để giảm lỗi PIN    | Hàng tuần    | Trang 1 + 2             |
+| **Chief Risk Officer (CRO)**      | Bức tranh rủi ro danh mục tổng                    | Hàng tuần    | Header + Funnel trang 3 |
 
 ### 3.3 KPI Đề xuất (đã hiệu chỉnh)
 
@@ -205,35 +219,35 @@ Cờ: ✅ dùng ngay · ⚠️ lưu ý thời gian · ❌ cần bổ sung dữ l
 
 #### Nhóm Chất lượng Giao dịch (Transaction Health)
 
-| # | Tên KPI | Công thức DAX | Mục tiêu | Cờ |
-|---|---|---|---|---|
-| R1 | **Tổng số GD** | `COUNTROWS(fact_transaction)` | benchmark | ✅ |
-| R2 | **Tỷ lệ GD lỗi** | `DIVIDE(CALCULATE(COUNTROWS(fact_transaction), fact_transaction[has_error]=1), [R1])` | < 2% (SLA) | ✅ |
-| R3 | **Tỷ lệ dùng Chip** | `DIVIDE(CALCULATE(COUNTROWS(fact_transaction), fact_transaction[is_chip_used]=1), [R1])` | > 80% | ✅ |
-| R4 | **Tổng giá trị GD lỗi** | `CALCULATE(SUM(fact_transaction[amount]), fact_transaction[has_error]=1)` | thiệt hại tiềm năng | ✅ |
-| R5 | **Số loại lỗi phân biệt** | `DISTINCTCOUNT(fact_transaction[errors])` | đa dạng nguyên nhân | ✅ |
-| R6 | **Mean Transaction Value** | `AVERAGE(fact_transaction[amount])` | phát hiện outlier | ✅ |
+| #  | Tên KPI                             | Công thức DAX                                                                                          | Mục tiêu              | Cờ |
+| -- | ------------------------------------ | -------------------------------------------------------------------------------------------------------- | ----------------------- | --- |
+| R1 | **Tổng số GD**               | `COUNTROWS('gold fact_transaction')`                                                                   | benchmark               | ✅  |
+| R2 | **Tỷ lệ GD lỗi**            | `DIVIDE(CALCULATE(COUNTROWS('gold fact_transaction'), 'gold fact_transaction'[has_error]=1), [R1])`    | < 2% (SLA)              | ✅  |
+| R3 | **Tỷ lệ dùng Chip**         | `DIVIDE(CALCULATE(COUNTROWS('gold fact_transaction'), 'gold fact_transaction'[is_chip_used]=1), [R1])` | > 80%                   | ✅  |
+| R4 | **Tổng giá trị GD lỗi**    | `CALCULATE(SUM('gold fact_transaction'[amount]), 'gold fact_transaction'[has_error]=1)`                | thiệt hại tiềm năng | ✅  |
+| R5 | **Số loại lỗi phân biệt** | `DISTINCTCOUNT('gold fact_transaction'[errors])`                                                       | đa dạng nguyên nhân | ✅  |
+| R6 | **Mean Transaction Value**     | `AVERAGE('gold fact_transaction'[amount])`                                                             | phát hiện outlier     | ✅  |
 
 #### Nhóm Rủi ro Danh mục (Portfolio Risk)
 
-| # | Tên KPI | Công thức DAX | Mục tiêu | Cờ |
-|---|---|---|---|---|
-| R7 | **% KH rủi ro cao (Poor)** | `DIVIDE(CALCULATE(COUNTROWS(dim_customer), dim_customer[credit_risk_tier]="Poor"), COUNTROWS(dim_customer))` | < 10% | ✅ |
-| R8 | **Dư nợ nhóm Poor** | `CALCULATE(SUM(dim_customer[total_debt]), dim_customer[credit_risk_tier]="Poor")` | exposure tối đa | ✅ |
-| R9 | **% KH DTI > 0.5** | `DIVIDE(CALCULATE(COUNTROWS(dim_customer), dim_customer[debt_to_income_ratio]>0.5), COUNTROWS(dim_customer))` | < 5% | ✅ |
-| R10 | **Credit score bq danh mục** | `AVERAGE(dim_customer[credit_score])` | > 680 | ✅ |
-| R11 | **Tương quan PIN cũ ↔ lỗi** | GD lỗi (`has_error`=1) phân tích theo `dim_card[pin_age_years]` | cơ sở giảm lỗi PIN | ⚠️ |
-| R12 | **Số KH PIN cũ (>3 năm)** | `CALCULATE(COUNTROWS(dim_card), dim_card[pin_age_years]>3)` | danh sách nhắc đổi PIN | ⚠️ tính theo GETDATE()=2026 |
-| R13 | **Thẻ sắp hết hạn (≤60 ngày)** | `CALCULATE(COUNTROWS(dim_card), DATEDIFF(TODAY(), dim_card[expires], DAY) >= 0, DATEDIFF(TODAY(), dim_card[expires], DAY) <= 60)` | trigger renewal | ⚠️ lệch do TODAY()=2026 |
+| #   | Tên KPI                                   | Công thức DAX                                                                                                                                          | Mục tiêu                 | Cờ                            |
+| --- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- | ------------------------------ |
+| R7  | **% KH rủi ro cao (Poor)**          | `DIVIDE(CALCULATE(COUNTROWS('gold dim_customer'), 'gold dim_customer'[credit_risk_tier]="Poor"), COUNTROWS('gold dim_customer'))`                      | < 10%                      | ✅                             |
+| R8  | **Dư nợ nhóm Poor**               | `CALCULATE(SUM('gold dim_customer'[total_debt]), 'gold dim_customer'[credit_risk_tier]="Poor")`                                                        | exposure tối đa          | ✅                             |
+| R9  | **% KH DTI > 0.5**                   | `DIVIDE(CALCULATE(COUNTROWS('gold dim_customer'), 'gold dim_customer'[debt_to_income_ratio]>0.5), COUNTROWS('gold dim_customer'))`                     | < 5%                       | ✅                             |
+| R10 | **Credit score bq danh mục**        | `AVERAGE('gold dim_customer'[credit_score])`                                                                                                           | > 680                      | ✅                             |
+| R11 | **Tương quan PIN cũ ↔ lỗi**     | GD lỗi (`has_error`=1) phân tích theo `'gold dim_card'[pin_age_years]`                                                                            | cơ sở giảm lỗi PIN     | ⚠️                           |
+| R12 | **Số KH PIN cũ (>3 năm)**         | `CALCULATE(COUNTROWS('gold dim_card'), 'gold dim_card'[pin_age_years]>3)`                                                                              | danh sách nhắc đổi PIN | ⚠️ tính theo GETDATE()=2026 |
+| R13 | **Thẻ sắp hết hạn (≤60 ngày)** | `CALCULATE(COUNTROWS('gold dim_card'), DATEDIFF(TODAY(), 'gold dim_card'[expires], DAY) >= 0, DATEDIFF(TODAY(), 'gold dim_card'[expires], DAY) <= 60)` | trigger renewal            | ⚠️ lệch do TODAY()=2026     |
 
 #### Nhóm Early Warning Signals (EWS)
 
-| # | KPI | Logic phát hiện | Hành động | Cờ |
-|---|---|---|---|---|
-| R14 | **KH chi tiêu đột biến (>200% bq)** | Chi tiêu tháng hiện tại > 2× bq 6 tháng trước (DAX time-intelligence trên `fact` + `dim_date`) | Xác minh danh tính | ✅ |
-| R15 | **KH lỗi liên tiếp ≥3 lần/tuần** | Window theo `card_id`/`customer_id` + `dim_date` (DAX nặng → cân nhắc precompute ở dbt) | Gợi ý đổi thẻ / hỗ trợ UX | ✅ |
-| R16 | **GD ngoài vùng địa lý quen thuộc** | So `merchant_state` với state của KH — **nhưng `dim_customer` không có cột state sạch** (chỉ `address` text + lat/long) | Flag fraud | ❌ không đáng tin tới khi thêm `customer_state` |
-| R17 | **KH credit_score giảm + DTI tăng** | Cần **lịch sử** credit_score/DTI — Gold chỉ có trạng thái mới nhất | Hạ hạn mức chủ động | ❌ cần snapshot lịch sử từ Silver |
+| #   | KPI                                             | Logic phát hiện                                                                                                                            | Hành động                     | Cờ                                                    |
+| --- | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- | ------------------------------------------------------ |
+| R14 | **KH chi tiêu đột biến (>200% bq)**   | Chi tiêu tháng hiện tại > 2× bq 6 tháng trước (DAX time-intelligence trên `fact` + `dim_date`)                                  | Xác minh danh tính             | ✅                                                     |
+| R15 | **KH lỗi liên tiếp ≥3 lần/tuần**    | Window theo `card_id`/`customer_id` + `dim_date` (DAX nặng → cân nhắc precompute ở dbt)                                           | Gợi ý đổi thẻ / hỗ trợ UX | ✅                                                     |
+| R16 | **GD ngoài vùng địa lý quen thuộc** | So `merchant_state` với state của KH — **nhưng `dim_customer` không có cột state sạch** (chỉ `address` text + lat/long) | Flag fraud                       | ❌ không đáng tin tới khi thêm `customer_state` |
+| R17 | **KH credit_score giảm + DTI tăng**     | Cần**lịch sử** credit_score/DTI — Gold chỉ có trạng thái mới nhất                                                            | Hạ hạn mức chủ động        | ❌ cần snapshot lịch sử từ Silver                  |
 
 ### 3.4 Thiết kế trang Dashboard CD2
 
@@ -314,21 +328,21 @@ Cờ: ✅ dùng ngay · ⚠️ lưu ý thời gian · ❌ cần bổ sung dữ l
 
 ### 3.5 Bộ lọc & Slicer CD2
 
-| Slicer | Nguồn trường | Loại control | Ghi chú |
-|---|---|---|---|
-| Khoảng thời gian | `dim_date[full_date]` | Date Range Picker | |
-| Granularity | `dim_date[year/quarter/month/day]` | Toggle group | Drill-down |
-| Có lỗi hay không | `fact_transaction[has_error]` | Toggle | `has_error` = 0/1 |
-| Loại lỗi | `fact_transaction[errors]` | Multi-select + search | |
-| Loại thẻ | `dim_card[card_type]` | Checkbox | |
-| Thương hiệu thẻ | `dim_card[card_brand]` | Checkbox | |
-| Có chip không | `dim_card[has_chip]` | Toggle | |
-| Khoảng tiền GD | `fact_transaction[amount]` | Range slider | |
-| Trạng thái rủi ro | `dim_customer[credit_risk_tier]` | Color-coded checkbox | |
-| DTI threshold | `dim_customer[debt_to_income_ratio]` | Numeric slicer (≥ X) | |
-| Bang merchant | `merchant_state` (fact hoặc dim_merchant) | Dropdown | |
-| Danh mục MCC | `dim_mcc[mcc_description]` | Search dropdown | |
-| Cuối tuần | `dim_date[is_weekend]` | Toggle | |
+| Slicer               | Nguồn trường                               | Loại control         | Ghi chú            |
+| -------------------- | --------------------------------------------- | --------------------- | ------------------- |
+| Khoảng thời gian   | `'gold dim_date'[full_date]`                | Date Range Picker     |                     |
+| Granularity          | `'gold dim_date'[year/quarter/month/day]`   | Toggle group          | Drill-down          |
+| Có lỗi hay không  | `'gold fact_transaction'[has_error]`        | Toggle                | `has_error` = 0/1 |
+| Loại lỗi           | `'gold fact_transaction'[errors]`           | Multi-select + search |                     |
+| Loại thẻ           | `'gold dim_card'[card_type]`                | Checkbox              |                     |
+| Thương hiệu thẻ  | `'gold dim_card'[card_brand]`               | Checkbox              |                     |
+| Có chip không      | `'gold dim_card'[has_chip]`                 | Toggle                |                     |
+| Khoảng tiền GD     | `'gold fact_transaction'[amount]`           | Range slider          |                     |
+| Trạng thái rủi ro | `'gold dim_customer'[credit_risk_tier]`     | Color-coded checkbox  |                     |
+| DTI threshold        | `'gold dim_customer'[debt_to_income_ratio]` | Numeric slicer (≥ X) |                     |
+| Bang merchant        | `merchant_state` (fact hoặc dim_merchant)  | Dropdown              |                     |
+| Danh mục MCC        | `'gold dim_mcc'[mcc_description]`           | Search dropdown       |                     |
+| Cuối tuần          | `'gold dim_date'[is_weekend]`               | Toggle                |                     |
 
 ---
 
@@ -340,105 +354,109 @@ Cờ: ✅ dùng ngay · ⚠️ lưu ý thời gian · ❌ cần bổ sung dữ l
 Power BI → Import / DirectQuery → SQL Server (database DATN, schema gold)
 ```
 
-| Bảng | Chế độ khuyến nghị | Lý do |
-|---|---|---|
-| `fact_transaction` | Import (157k dòng nhỏ) | Aggregation nhanh |
-| `dim_*` | Import | Dimension nhỏ, cross-filter |
+| Bảng                | Chế độ khuyến nghị  | Lý do                       |
+| -------------------- | ------------------------ | ---------------------------- |
+| `fact_transaction` | Import (157k dòng nhỏ) | Aggregation nhanh            |
+| `dim_*`            | Import                   | Dimension nhỏ, cross-filter |
 
 ### 4.2 Quan hệ trong Power BI Data Model (khớp natural key thật)
 
 ```
-fact_transaction[date_key]     → dim_date[date_key]         (Many-to-One) ✓
-fact_transaction[customer_id]  → dim_customer[customer_id]  (Many-to-One) ✓
-fact_transaction[card_id]      → dim_card[card_id]          (Many-to-One) ✓
-fact_transaction[merchant_id]  → dim_merchant[merchant_id]  (Many-to-One) ✓
-fact_transaction[mcc_id]       → dim_mcc[mcc_id]            (Many-to-One) ✓
+'gold fact_transaction'[date_key]     → 'gold dim_date'[date_key]         (Many-to-One) ✓
+'gold fact_transaction'[customer_id]  → 'gold dim_customer'[customer_id]  (Many-to-One) ✓
+'gold fact_transaction'[card_id]      → 'gold dim_card'[card_id]          (Many-to-One) ✓
+'gold fact_transaction'[merchant_id]  → 'gold dim_merchant'[merchant_id]  (Many-to-One) ✓
+'gold fact_transaction'[mcc_id]       → 'gold dim_mcc'[mcc_id]            (Many-to-One) ✓
 ```
 
 > - **Mark as Date Table**: chọn `dim_date` theo `full_date` để time-intelligence (DATEADD, SAMEPERIODLASTYEAR…) hoạt động. `dim_date` là model động nên tự trải đủ khoảng dữ liệu.
-> - `dim_card[customer_id] → dim_customer[customer_id]` tạo vòng lặp với fact → để **inactive**, kích hoạt bằng `USERELATIONSHIP()` khi cần phân tích thẻ theo KH không qua fact.
+> - `'gold dim_card'[customer_id] → 'gold dim_customer'[customer_id]` tạo vòng lặp với fact → để **inactive**, kích hoạt bằng `USERELATIONSHIP()` khi cần phân tích thẻ theo KH không qua fact.
 
 ### 4.3 Các Measure DAX cốt lõi (đã sửa)
 
 ```dax
 -- ===== CHUNG =====
-Total Transactions = COUNTROWS(fact_transaction)
-Total Amount       = SUM(fact_transaction[amount])
-Active Customers   = DISTINCTCOUNT(fact_transaction[customer_id])
+Total Transactions = COUNTROWS('gold fact_transaction')
+Total Amount       = SUM('gold fact_transaction'[amount])
+Active Customers   = DISTINCTCOUNT('gold fact_transaction'[customer_id])
 
 -- has_error / is_chip_used là BIT (0/1) → so sánh = 1, KHÔNG dùng TRUE()
 Error Rate % =
 DIVIDE(
-    CALCULATE(COUNTROWS(fact_transaction), fact_transaction[has_error] = 1),
+    CALCULATE(COUNTROWS('gold fact_transaction'), 'gold fact_transaction'[has_error] = 1),
     [Total Transactions], 0
 )
 
 Chip Usage Rate % =
 DIVIDE(
-    CALCULATE(COUNTROWS(fact_transaction), fact_transaction[is_chip_used] = 1),
+    CALCULATE(COUNTROWS('gold fact_transaction'), 'gold fact_transaction'[is_chip_used] = 1),
     [Total Transactions], 0
 )
 
 ARPU = DIVIDE([Total Amount], [Active Customers], 0)
 
 -- ===== CD1 =====
-Upsell Card Candidates =
+-- C6/C7 tái dụng measure [Số KH theo Gợi ý] qua bảng phụ 'Gợi ý Sản phẩm' (DATATABLE)
+-- CALCULATE ép filter context → SELECTEDVALUE bên trong trả đúng nhãn → số luôn khớp bar chart
+KH Up-sell =
 CALCULATE(
-    COUNTROWS(dim_customer),
-    dim_customer[credit_risk_tier] IN {"Good", "Excellent"},
-    dim_customer[num_credit_cards] < 3
+    [Số KH theo Gợi ý],
+    'Gợi ý Sản phẩm'[Product_Suggestion] = "Up-sell: Thẻ Platinum"
+) +
+CALCULATE(
+    [Số KH theo Gợi ý],
+    'Gợi ý Sản phẩm'[Product_Suggestion] = "Up-sell: Tăng hạn mức"
 )
 
-Loan Offer Candidates =
+KH Mời vay =
 CALCULATE(
-    COUNTROWS(dim_customer),
-    dim_customer[debt_to_income_ratio] < 0.3,
-    dim_customer[credit_risk_tier] IN {"Good", "Excellent"}
+    [Số KH theo Gợi ý],
+    'Gợi ý Sản phẩm'[Product_Suggestion] = "Cross-sell: Vay tiêu dùng lãi suất ưu đãi"
 )
 
 Weekend Txn % =
 DIVIDE(
-    CALCULATE(COUNTROWS(fact_transaction), dim_date[is_weekend] = TRUE()),
+    CALCULATE(COUNTROWS('gold fact_transaction'), 'gold dim_date'[is_weekend] = TRUE()),
     [Total Transactions], 0
 )
 
 -- ===== CD2 =====
-Error Amount = CALCULATE([Total Amount], fact_transaction[has_error] = 1)
+Error Amount = CALCULATE([Total Amount], 'gold fact_transaction'[has_error] = 1)
 
 High DTI Customer % =
 DIVIDE(
-    CALCULATE(COUNTROWS(dim_customer), dim_customer[debt_to_income_ratio] > 0.5),
-    COUNTROWS(dim_customer), 0
+    CALCULATE(COUNTROWS('gold dim_customer'), 'gold dim_customer'[debt_to_income_ratio] > 0.5),
+    COUNTROWS('gold dim_customer'), 0
 )
 
 Poor Tier Debt =
-CALCULATE(SUM(dim_customer[total_debt]), dim_customer[credit_risk_tier] = "Poor")
+CALCULATE(SUM('gold dim_customer'[total_debt]), 'gold dim_customer'[credit_risk_tier] = "Poor")
 
 MoM Error Rate Change =
 VAR CurrentMonth = [Error Rate %]
-VAR PrevMonth = CALCULATE([Error Rate %], DATEADD(dim_date[full_date], -1, MONTH))
+VAR PrevMonth = CALCULATE([Error Rate %], DATEADD('gold dim_date'[full_date], -1, MONTH))
 RETURN DIVIDE(CurrentMonth - PrevMonth, PrevMonth, 0)
 
 -- ⚠ Caveat thời gian: TODAY() ~ 2026 nhưng dữ liệu kết thúc 2024-10.
 -- Cân nhắc thay TODAY() bằng biến mốc as-of cố định = 2024-10-31.
-Old PIN Cards = CALCULATE(COUNTROWS(dim_card), dim_card[pin_age_years] > 3)
+Old PIN Cards = CALCULATE(COUNTROWS('gold dim_card'), 'gold dim_card'[pin_age_years] > 3)
 
 Cards Expiring Soon =
 CALCULATE(
-    COUNTROWS(dim_card),
-    DATEDIFF(TODAY(), dim_card[expires], DAY) >= 0,
-    DATEDIFF(TODAY(), dim_card[expires], DAY) <= 60
+    COUNTROWS('gold dim_card'),
+    DATEDIFF(TODAY(), 'gold dim_card'[expires], DAY) >= 0,
+    DATEDIFF(TODAY(), 'gold dim_card'[expires], DAY) <= 60
 )
 ```
 
 ### 4.4 Row-Level Security (RLS)
 
-| Role | Điều kiện lọc | Đối tượng |
-|---|---|---|
-| `Credit_Risk_Viewer` | `dim_customer[credit_risk_tier] IN {"Poor","Fair"}` | Risk Analyst |
-| `Marketing_Viewer` | `dim_customer[credit_risk_tier] IN {"Good","Excellent"}` | Marketing Team |
-| `Executive` | Toàn bộ dữ liệu | C-level, CRO |
-| `Operations` | Ẩn `dim_customer[credit_score]`, `total_debt` (object-level security) | Ops Team |
+| Role                   | Điều kiện lọc                                                                 | Đối tượng  |
+| ---------------------- | --------------------------------------------------------------------------------- | -------------- |
+| `Credit_Risk_Viewer` | `'gold dim_customer'[credit_risk_tier] IN {"Poor","Fair"}`                      | Risk Analyst   |
+| `Marketing_Viewer`   | `'gold dim_customer'[credit_risk_tier] IN {"Good","Excellent"}`                 | Marketing Team |
+| `Executive`          | Toàn bộ dữ liệu                                                               | C-level, CRO   |
+| `Operations`         | Ẩn `'gold dim_customer'[credit_score]`, `total_debt` (object-level security) | Ops Team       |
 
 ---
 
@@ -459,10 +477,10 @@ B8: Publish + cấu hình Scheduled Refresh
 
 ### 5.2 Refresh Schedule
 
-| Loại | Tần suất | Phương thức |
-|---|---|---|
-| Dữ liệu giao dịch | Hàng ngày ~06:00 (sau khi `banking_structured_dag` chạy 02:00 + DQ 04:00) | Scheduled Refresh |
-| Dữ liệu khách hàng | Hàng tuần | Scheduled Refresh |
+| Loại                  | Tần suất                                                                     | Phương thức    |
+| ---------------------- | ------------------------------------------------------------------------------ | ----------------- |
+| Dữ liệu giao dịch   | Hàng ngày ~06:00 (sau khi `banking_structured_dag` chạy 02:00 + DQ 04:00) | Scheduled Refresh |
+| Dữ liệu khách hàng | Hàng tuần                                                                    | Scheduled Refresh |
 
 ### 5.3 Checklist chất lượng trước go-live
 
@@ -479,13 +497,13 @@ B8: Publish + cấu hình Scheduled Refresh
 
 ## 6. Tóm tắt nhanh
 
-| | CD1 – Phân khúc KH | CD2 – Quản trị Rủi ro |
-|---|---|---|
-| **Người dùng chính** | Product Manager, Marketing Analyst, RM, C-level | Ops Manager, Risk Officer, Fraud Analyst, CX, CRO |
-| **KPI cốt lõi** | ARPU, % Premium, Upsell/Loan Candidates, CLV proxy | Error Rate %, Chip %, % DTI>0.5, % Poor, Credit Score bq |
-| **Slicer quan trọng** | income_segment, credit_risk_tier, years_to_retirement | has_error, amount range, credit_risk_tier, date range |
-| **Visual nổi bật** | Treemap, Scatter income/debt, Map lat-long | Line 2 trục lỗi, Map merchant_state, Funnel DTI, Matrix rủi ro |
-| **Số trang** | 3 | 4 |
+|                                | CD1 – Phân khúc KH                                 | CD2 – Quản trị Rủi ro                                         |
+| ------------------------------ | ----------------------------------------------------- | ----------------------------------------------------------------- |
+| **Người dùng chính** | Product Manager, Marketing Analyst, RM, C-level       | Ops Manager, Risk Officer, Fraud Analyst, CX, CRO                 |
+| **KPI cốt lõi**        | ARPU, % Premium, Upsell/Loan Candidates, CLV proxy    | Error Rate %, Chip %, % DTI>0.5, % Poor, Credit Score bq          |
+| **Slicer quan trọng**   | income_segment, credit_risk_tier, years_to_retirement | has_error, amount range, credit_risk_tier, date range             |
+| **Visual nổi bật**     | Treemap, Scatter income/debt, Map lat-long            | Line 2 trục lỗi, Map merchant_state, Funnel DTI, Matrix rủi ro |
+| **Số trang**            | 3                                                     | 4                                                                 |
 
 ---
 

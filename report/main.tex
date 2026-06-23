@@ -1,0 +1,466 @@
+\documentclass[oneside, a4paper]{book}
+\usepackage[left=3.5cm,right=2cm,top=3.5cm,bottom=3cm]{geometry}
+\usepackage[nottoc]{tocbibind}
+\usepackage{indentfirst}
+\usepackage[unicode]{hyperref}
+\usepackage[protrusion=false]{microtype}
+\usepackage{cite}
+\usepackage{pdfpages}
+\usepackage{enumitem} 
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage{wrapfig}
+\usepackage{tikz, pgf}
+\usetikzlibrary{shapes}
+\usetikzlibrary{patterns}
+\usetikzlibrary{arrows.meta, calc}
+\usepackage{listings}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\normalsize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+\lstset{style=mystyle}
+
+\hbadness=10000
+\vbadness=10000
+\hfuzz=45pt
+\vfuzz=15pt
+
+\usepackage{amsmath,amssymb,latexsym,amscd,amsxtra,graphicx,graphpap,amsthm}
+\usepackage{mathtools}
+\usepackage{pb-diagram}
+\usepackage{caption}
+\usepackage{aligned-overset}
+\usepackage{picinpar,floatflt}
+\usepackage{longtable}
+\usepackage{fancybox}
+\usepackage[utf8]{vietnam}
+\usepackage{anyfontsize}
+\usepackage{tabularx}
+\usepackage{comment}
+\usepackage{algpseudocode}
+\usepackage{adjustbox}
+\usepackage{algorithm}
+\usepackage{graphicx}
+
+
+
+
+\usepackage{tikz}
+\usetikzlibrary{positioning, arrows.meta}
+\usepackage{float} % Bắt buộc để dùng tham số [H] ép vị trí hình ảnh
+\usepackage{tikz}
+\usetikzlibrary{positioning, arrows.meta, calc}
+\usepackage{amsmath}
+\usetikzlibrary{positioning, arrows.meta, calc, decorations.pathreplacing}
+\usepackage{float}       % Để sử dụng tham số [H] cố định vị trí hình ảnh
+\usepackage{caption}     % Hỗ trợ tùy chỉnh chú thích
+\usepackage{subcaption}  % Bắt buộc phải có để dùng môi trường \begin{subfigure}
+\usepackage{tikz}        % Thư viện vẽ hình lõi
+\usetikzlibrary{arrows.meta, positioning, decorations.pathreplacing} % Các gói mở rộng của TikZ
+\usepackage{titletoc}
+
+
+
+
+
+
+
+
+
+\makeatletter
+\renewcommand{\ALG@name}{\large Thuật toán}
+\makeatother
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd{\ALG@beginalgorithmic}{\tiny}{\normalsize}{}{}
+\algrenewcommand\alglinenumber[1]{\large #1:}
+\makeatother
+
+%==================================
+% ĐỊNH DẠNG MỤC LỤC
+%==================================
+\titlecontents{chapter}
+  [0pt]
+  {\bfseries}
+  {\chaptername\ \thecontentslabel\enskip}
+  {}
+  {\hfill\contentspage}
+
+%==================================
+% ĐÁNH SỐ CHƯƠNG / SECTION
+%==================================
+
+\renewcommand{\thechapter}{\arabic{chapter}} 
+\renewcommand{\thesection}{\thechapter.\arabic{section}} % Ghép số chương vào mục lớn (1.1, 1.2, 2.1...)
+\renewcommand{\thesubsection}{\thesection.\arabic{subsection}} % Mục nhỏ: 1.1.1, 1.1.2...
+\renewcommand{\thesubsubsection}{\thesubsection.\arabic{subsubsection}} % Mục nhỏ hơn: 1.1.1.1...
+
+\newcommand{\eproof}{\hfill $\square$}
+\newcommand{\chm}{{\bfseries Chứng minh.}}
+\newenvironment{cm}{\chm}{\eproof}
+
+%==================================
+% CÁC MÔI TRƯỜNG ĐỊNH LÝ
+%==================================
+\theoremstyle{plain}
+\newtheorem{bd}{Bổ đề}[chapter]
+\providecommand*{\bdautorefname}{Bổ đề}
+\newtheorem{md}{Mệnh đề}[chapter]
+\providecommand*{\mdautorefname}{Mệnh đề}
+\newtheorem{hq}{Hệ quả}[chapter]
+\providecommand*{\hqautorefname}{Hệ quả}
+\newtheorem{dl}{\bfseries Định lý}[chapter]
+\providecommand*{\dlautorefname}{Định lý}
+\newtheorem{tc}{\bfseries Tính chất}[chapter]
+\providecommand*{\tcautorefname}{Tính chất}
+\newtheorem{st}{\bf Bước}
+\newtheorem{stc}{\hspace{0.5em} Bước}[st]
+\newtheorem*{namedthm}{\namedthmname}
+\newcounter{namedthm}
+\makeatletter
+\newenvironment{named}[1]
+  {\def\namedthmname{#1}%
+   \refstepcounter{namedthm}%
+   \namedthm\def\@currentlabel{#1}}
+  {\endnamedthm}
+\makeatother
+
+\theoremstyle{definition}
+\newtheorem{dn}{Định nghĩa}[chapter]
+\providecommand*{\dnautorefname}{Định nghĩa}
+\newtheorem{bt}{Bài toán}[chapter]
+\providecommand*{\btautorefname}{Bài toán}
+\newtheorem{vd}{\bfseries Ví dụ}[chapter]
+\providecommand*{\vdautorefname}{Ví dụ}
+\newtheorem{assumption}{\bfseries Giả thiết}[chapter]
+\providecommand*{\assumptionautorefname}{Giả thiết}
+
+\theoremstyle{remark}
+\newtheorem{kh}{ký hiệu}[chapter]
+\newtheorem{nx}{Nhận xét}[chapter]
+\newtheorem{ly}{Lưu ý}[chapter]
+\renewcommand{\thekh}{\textit{\thechapter.\arabic{kh}}}
+\renewcommand{\thenx}{\textit{\thechapter.\arabic{nx}}}
+\renewcommand{\thely}{\textit{\thechapter.\arabic{ly}}}
+
+%==================================
+% BỐ CỤC TRANG
+%==================================
+\renewcommand{\baselinestretch}{1.5}
+\setlength{\oddsidemargin}{0.3cm}
+\setlength{\topmargin}{-1cm}
+\setlength{\headsep}{0.5cm}
+\textwidth=15.5cm
+\textheight=24.5cm
+
+%==================================
+% ĐỔI TÊN CÁC THÀNH PHẦN SANG TIẾNG VIỆT
+%==================================
+\renewcommand{\bibname}{Tài liệu tham khảo}
+\renewcommand{\listfigurename}{Danh sách hình vẽ}
+\renewcommand{\listtablename}{Danh sách bảng}
+
+%==================================
+% CỠ CHỮ TÙY CHỈNH
+%==================================
+\renewcommand{\large}{\fontsize{14pt}{14pt}\selectfont}
+\renewcommand{\Large}{\fontsize{16pt}{16pt}\selectfont}
+\renewcommand{\LARGE}{\fontsize{15pt}{15pt}\selectfont}
+\renewcommand{\th}{\fontsize{18pt}{18pt}\selectfont}
+
+%==================================
+% HEADER - FOOTER (fancyhdr)
+%==================================
+\usepackage{fancyhdr}
+\usepackage{emptypage}
+
+% Cấu hình header & footer cho trang thường (áp dụng từ chương 1)
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\nouppercase{\leftmark}} % Trái: Refer đến chương hiện tại
+\fancyhead[R]{\small\textit{Đồ án tốt nghiệp}} % Phải: Đồ án tốt nghiệp
+\fancyfoot[C]{\thepage} % Giữa dưới cùng: Số trang
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Trang mở đầu chương: chỉ có số trang, không có header
+\fancypagestyle{plain}{
+  \fancyhf{}
+  \fancyfoot[C]{\thepage}
+  \renewcommand{\headrulewidth}{0pt}
+}
+
+% Định dạng lại leftmark để hiển thị "Chương X. Tên chương"
+\renewcommand{\chaptermark}[1]{%
+  \markboth{Chương \thechapter.\ #1}{}%
+}
+
+%==================================
+% CÁC LỆNH TOÁN / DELIMITER
+%==================================
+\newenvironment{mproof}{\paragraph{Chứng minh:}}{\hfill$\square$}
+\newenvironment{myproof}[2] {\paragraph{Proof of {#1} {#2} :}}{\hfill$\square$}
+\DeclarePairedDelimiter{\pro}{\langle}{\rangle}
+\DeclarePairedDelimiter{\norm}{\lVert}{\rVert}
+\DeclarePairedDelimiter{\abs}{\lvert}{\rvert}
+\usepackage{xpatch}
+\makeatletter
+\AtBeginDocument{\xpatchcmd{\@thm}{\thm@headpunct{.}}{\thm@headpunct{}}{}{}}
+\makeatother
+
+%=====================================================
+%              BẮT ĐẦU TÀI LIỆU
+%=====================================================
+\begin{document}
+
+%-----------------------------------------------------
+% TRANG BÌA (không đánh số, không header)
+%-----------------------------------------------------
+\pagestyle{empty}
+\pagenumbering{gobble}
+\newgeometry{left=2.8cm,right=1.8cm,top=2.5cm,bottom=2cm}
+\setcounter{secnumdepth}{3}
+
+\begin{center}
+    \Large
+    \vspace{-1cm}
+    {\bfseries ĐẠI HỌC BÁCH KHOA HÀ NỘI}\\
+    {\bfseries KHOA TOÁN - TIN}
+\end{center}
+
+\vspace{5cm}
+
+\begin{center}
+    \fontsize{25pt}{16pt}\selectfont    
+    {\bfseries ĐỒ ÁN TỐT NGHIỆP}
+
+    \vspace{1cm}
+    
+    \fontsize{20pt}{16pt}\selectfont
+    {\bfseries XÂY DỰNG HỆ THỐNG XỬ LÝ VÀ PHÂN TÍCH DỮ LIỆU GIAO DỊCH NGÂN HÀNG} %Điền tên chủ đề
+
+    \vspace{2cm}
+    
+    \fontsize{16pt}{16pt}\selectfont
+    {\bfseries NGUYỄN HỒNG NHUNG}
+    
+    \fontsize{14pt}{16pt}\selectfont {Nhung.nh227253@sis.hust.edu.vn}
+    
+    \vspace{0.5cm}
+    
+    \fontsize{13pt}{16pt}\selectfont
+    {\textbf{Chuyên ngành:} \fontsize{15pt}{16pt}\selectfont Hệ thống thông tin quản lý}
+\end{center}
+
+\vspace{2cm}
+
+\fontsize{14pt}{16pt}\selectfont
+{
+\centering
+    \begin{tabular}{ l l }
+        \textbf{Giảng viên hướng dẫn:}& \fontsize{16pt}{16pt}\selectfont ThS. Nguyễn Danh Tú \newcommand\tab[1][0.3cm]{\hspace*{#1}}\tab $\underset{\text{Chữ ký của GVHD}}{\rule{3.5cm}{0.5pt}}$ \\
+    \end{tabular}
+}
+
+\vspace{3cm}
+
+\begin{center}
+    \LARGE HÀ NỘI -- 2026
+\end{center}
+    
+\restoregeometry
+
+%-----------------------------------------------------
+% FRONT MATTER (Đánh số La Mã, Không Header)
+%-----------------------------------------------------
+\newpage
+\pagenumbering{roman} % Đánh số La Mã cho các phần trước Chương 1
+\setcounter{page}{1}
+\pagestyle{plain} % Dùng style plain: Không header, có số trang ở footer
+
+\thisfancypage{
+    \setlength{\fboxsep}{0.5cm}
+    \fbox}{}
+
+\fontsize{13pt}{16pt}\selectfont
+\bigbreak
+\begin{center}
+    {\bfseries NHẬN XÉT CỦA GIẢNG VIÊN HƯỚNG DẪN}
+\end{center}
+\bigbreak
+
+\fontsize{12pt}{14pt}\selectfont
+\begin{enumerate}
+    \item [{\bfseries 1.}]{\bfseries Mục tiêu và nội dung của đồ án}
+    \begin{enumerate}
+        \item Mục tiêu: .
+        \item Nội dung: . 
+    \end{enumerate}
+    \item [{\bfseries 2.}] {\bfseries Kết quả đạt được} 
+    \begin{enumerate}
+        \item 1. 
+        \item 2.
+        \item 3.
+    \end{enumerate}
+    \item [{\bfseries 3.}]{\bfseries Ý thức làm việc của sinh viên:}
+\end{enumerate}
+\hspace{0.5\textwidth}
+\begin{minipage}{0.5\textwidth}
+    \noindent\begin{center}
+        \textit{Hà Nội, ngày ....    tháng ... năm 2026} \\
+        Giảng viên hướng dẫn\\ \vspace{2cm}
+        \textbf{ThS. Nguyễn Danh Tú}
+    \end{center}   
+\end{minipage}
+
+\newpage
+\fontsize{22pt}{16pt}\selectfont
+{\bfseries Lời cảm ơn}
+\fontsize{13pt}{16pt}\selectfont
+\bigskip
+
+Lời đầu tiên, em xin gửi lời cảm ơn chân thành và sâu sắc nhất đến quý thầy cô Khoa \textbf{Toán - Tin}, Trường \textbf{Đại học Bách khoa Hà Nội}, những người đã tận tình truyền đạt kiến thức, định hướng tư duy và tạo điều kiện tốt nhất để em hoàn thành chương trình học trong suốt những năm qua.
+
+Em xin bày tỏ lòng biết ơn sâu sắc đến \textbf{Thầy giáo Nguyễn Danh Tú}– người đã trực tiếp hướng dẫn, tận tình chỉ bảo và luôn đồng hành cùng em trong suốt quá trình thực hiện Đồ án 1, Đồ án 2 và đặc biệt là Đồ án Tốt nghiệp. Những góp ý chuyên môn sâu sắc, sự tận tâm trong công việc cùng những lời động viên, khích lệ đúng lúc của thầy đã trở thành nguồn động lực to lớn giúp em vượt qua những khó khăn, thử thách trong quá trình nghiên cứu và hoàn thiện đề tài. Sự tận tụy, trách nhiệm và tâm huyết của thầy là tấm gương để em học hỏi và noi theo.
+
+
+Em cũng xin cảm ơn các bạn trong nhóm học tập, những người đã cùng thảo luận, chia sẻ kinh nghiệm và hỗ trợ nhau trong suốt thời gian học tập 4 năm tại trường.
+
+Cuối cùng, con xin gửi lời tri ân sâu sắc đến gia đình, đặc biệt là bố mẹ, những người luôn ở bên, động viên và là chỗ dựa vững chắc để con có thể toàn tâm hoàn thành đồ án này.
+
+Mặc dù đã cố gắng hết sức, đồ án chắc chắn còn nhiều thiếu sót. Em rất mong nhận được sự góp ý từ quý thầy cô và các bạn để đề tài được hoàn thiện hơn.
+
+\vspace{1cm}
+
+\begin{minipage}{0.5\textwidth}
+\end{minipage}
+\hspace{0.5\textwidth}
+\begin{minipage}{0.5\textwidth}
+    \begin{center}
+        \textit{Hà Nội, tháng 6 năm 2026} \\
+        Tác giả Đồ án \\
+        \vspace{2cm}
+        \textbf{Nguyễn Hồng Nhung}
+    \end{center}
+\end{minipage}
+
+\newpage
+\fontsize{22pt}{16pt}\selectfont
+{\bfseries Tóm tắt nội dung Đồ án}
+\fontsize{13pt}{16pt}\selectfont
+\bigskip
+\bigskip
+
+Đồ án tập trung nghiên cứu và xây dựng hệ thống nền tảng dữ liệu (Data Platform) phục vụ cho bài toán trong lĩnh vực ngân hàng. Thông qua việc thu thập, xử lý và trực quan hóa, đồ án giải quyết trọn vẹn bài toán tích hợp cả dữ liệu có cấu trúc (thông tin khách hàng, thẻ, giao dịch) thông qua luồng ETL và dữ liệu phi cấu trúc (hình ảnh Căn cước công dân, Sổ tiết kiệm) thông qua công nghệ nhận dạng quang học. Nội dung đồ án được triển khai chi tiết qua bốn phần chính như sau:
+
+\begin{enumerate}
+    \item \textbf{Tổng quan lý thuyết:} 
+    Phần này trình bày các cơ sở lý thuyết nền tảng làm kim chỉ nam cho toàn bộ quá trình nghiên cứu và xây dựng hệ thống. Nội dung bao quát các khái niệm cốt lõi về Kho dữ liệu (Data Warehouse) truyền thống và sự tiến hóa sang kiến trúc đa tầng Medallion (Bronze -- Silver -- Gold) hiện đại. Đồ án cũng đi sâu vào lý thuyết của mô hình Data Vault 2.0 phục vụ quản lý lịch sử thay đổi (SCD) một cách linh hoạt và mô hình đa chiều (Star Schema) phục vụ phân tích dữ liệu chuyên sâu. Đồng thời, nền tảng lý thuyết về quy trình tích hợp dữ liệu (ETL), kỹ thuật trích xuất đặc trưng hình ảnh bằng công nghệ nhận dạng ký tự quang học (OCR) và vai trò của các công cụ điều phối luồng công việc (Workflow Orchestration) cũng được làm rõ.
+
+    \item \textbf{Khảo sát và phân tích yêu cầu:} 
+    Quá trình khảo sát đánh giá chi tiết thực trạng quản lý dữ liệu tại các hệ thống ngân hàng hiện nay, nơi dữ liệu thường bị phân mảnh ở nhiều hệ thống tác nghiệp (OLTP) và các quy trình xử lý hồ sơ chứng từ vẫn phụ thuộc nhiều vào thao tác nhập liệu thủ công. Từ việc xác định những hạn chế về tính đồng bộ, khả năng truy xuất lịch sử và mức độ tự động hóa, đồ án đặt ra các yêu cầu chức năng và phi chức năng khắt khe. Dựa trên đó, giải pháp được đề xuất là xây dựng hai luồng dữ liệu (Data Pipeline) độc lập nhưng thống nhất: một luồng tinh gọn xử lý dữ liệu phi cấu trúc bằng OCR và một luồng ETL toàn diện xử lý dữ liệu giao dịch có cấu trúc.
+
+    \item \textbf{Phân tích và thiết kế hệ thống:} 
+    Ở giai đoạn này, kiến trúc hệ thống được thiết kế chi tiết với cơ sở dữ liệu tập trung trên nền tảng SQL Server. Đối với dữ liệu có cấu trúc, đồ án thiết kế chiến lược nạp dữ liệu gia tăng (Incremental Loading) sử dụng chiến lược MNS để bóc tách các thay đổi hàng ngày. Dữ liệu sau đó được lưu trữ tại tầng Silver theo mô hình Data Vault (gồm Hub, Link, Satellite) nhằm đảm bảo tính toàn vẹn, trước khi chuyển hóa sang Star Schema tại tầng Gold để tối ưu hóa truy vấn. Đối với dữ liệu phi cấu trúc, đồ án thiết kế các lược đồ bảng tại tầng Bronze để lưu trữ trực tiếp văn bản thô được trích xuất từ ảnh chứng từ, đi kèm với hệ thống bảng Audit để giám sát và đánh giá độ tin cậy của thuật toán.
+
+    \item \textbf{Xây dựng và triển khai hệ thống:} 
+    Hệ thống được lập trình và vận hành thực tế thông qua việc cô lập hai môi trường Python ảo nhằm giải quyết triệt để sự xung đột tài nguyên giữa engine OCR và các công cụ dữ liệu. Đồ án ứng dụng Apache Airflow để điều phối tự động kịch bản chạy định kỳ và công cụ dbt để thực hiện các phép biến đổi SQL, đồng thời tích hợp hàng loạt các bài kiểm tra chất lượng dữ liệu (Data Quality checks) như kiểm soát giá trị rỗng, trùng lặp khóa và tính cập nhật. Cuối cùng, toàn bộ nguồn dữ liệu đã được làm sạch tại tầng Gold được kết nối với hệ thống Power BI để xây dựng các báo cáo quản trị (Dashboard) trực quan, hỗ trợ ra quyết định kinh doanh.
+\end{enumerate}
+
+Phần kết luận tổng hợp lại những giá trị cốt lõi mà nền tảng dữ liệu mang lại trong việc nâng cao năng lực khai thác thông tin và số hóa quy trình tác nghiệp ngân hàng. Định hướng phát triển trong tương lai mở ra các tiềm năng nâng cấp kỹ thuật như xử lý song song nhiều tài liệu phức tạp, tinh chỉnh các bước tiền xử lý ảnh và thiết kế giao diện ứng dụng để người dùng dễ dàng theo dõi, can thiệp vào kết quả trích xuất.
+
+
+
+\vspace{1cm}
+\begin{minipage}{0.5\textwidth}
+\end{minipage}
+\hspace{0.5\textwidth}
+\begin{minipage}{0.5\textwidth}
+    \noindent\begin{center}
+        \textit{Hà Nội, tháng 1 năm 2026} \\
+        Tác giả đồ án\\ \vspace{2cm}
+        \textbf{Nguyễn Hồng Nhung}
+    \end{center}   
+\end{minipage}
+
+\newpage
+\tableofcontents % Mục lục
+
+\newpage
+\listoffigures % Danh sách hình vẽ
+
+\newpage
+\pdfbookmark[0]{Danh sach bang}{lot}
+\hypersetup{bookmarksdepth=-2}
+\listoftables % Danh sách bảng
+\hypersetup{bookmarksdepth=3}
+
+\newpage
+\chapter*{Bảng ký hiệu và chữ viết tắt}
+\addcontentsline{toc}{chapter}{\bfseries Bảng ký hiệu và chữ viết tắt}
+
+\begin{tabular}
+    {@{\hspace{-0.1cm}} l @{\hspace{1.2cm}}p{11.5cm}l}
+    Dim & Dimension - chiều dữ liệu\\
+    OLAP & Online Analytical Processing\\
+    OLTP & Online Transactional Processing\\
+    ETL & Extract, Transform, Load\\
+    
+
+
+
+\end{tabular}
+
+%-----------------------------------------------------
+% MAIN MATTER (Đánh số Ả Rập, Bắt đầu có Header)
+%-----------------------------------------------------
+\clearpage
+\pagenumbering{arabic} % Đánh số 1, 2, 3...
+\setcounter{page}{1} % Bắt đầu lại từ trang 1
+\pagestyle{fancy} % Bật header theo yêu cầu (Trái: Chương, Phải: Đồ án, Giữa dưới: số trang)
+
+% \input{chapter1}
+% \input{chapter2}
+% \input{chapter3}
+\input{chapter4}
+
+%-----------------------------------------------------
+% KẾT LUẬN
+%-----------------------------------------------------
+\chapter*{Kết luận}
+\addcontentsline{toc}{chapter}{\bfseries Kết luận}
+% Force update leftmark for unnumbered chapter to show on header
+\markboth{Kết luận}{}
+
+\section*{Đồ án đã đạt được mục tiêu đề ra}
+
+\section*{Kết quả của đồ án}
+
+\section*{Kỹ năng đạt được}
+
+\section*{Hướng phát triển của đồ án trong tương lai}
+
+\end{document}
