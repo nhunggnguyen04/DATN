@@ -3,7 +3,7 @@
 \usepackage[nottoc]{tocbibind}
 \usepackage{indentfirst}
 \usepackage[unicode]{hyperref}
-\usepackage[protrusion=false]{microtype}
+\usepackage[protrusion=false,expansion=false]{microtype}
 \usepackage{cite}
 \usepackage{pdfpages}
 \usepackage{enumitem} 
@@ -200,8 +200,8 @@
 % Cấu hình header & footer cho trang thường (áp dụng từ chương 1)
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[L]{\small\nouppercase{\leftmark}} % Trái: Refer đến chương hiện tại
-\fancyhead[R]{\small\textit{Đồ án tốt nghiệp}} % Phải: Đồ án tốt nghiệp
+\fancyhead[L]{\small\textit{Đồ án tốt nghiệp}} % Trái: Đồ án tốt nghiệp
+\fancyhead[R]{\small\nouppercase{\leftmark}} % Phải: Chương hiện tại và tên chương
 \fancyfoot[C]{\thepage} % Giữa dưới cùng: Số trang
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
@@ -249,9 +249,13 @@
     \vspace{-1cm}
     {\bfseries ĐẠI HỌC BÁCH KHOA HÀ NỘI}\\
     {\bfseries KHOA TOÁN - TIN}
+
+    \vspace{1.5cm}
+    \includegraphics[width=4cm]{hust.jpg}
 \end{center}
 
-\vspace{5cm}
+\vspace{1cm}
+
 
 \begin{center}
     \fontsize{25pt}{16pt}\selectfont    
@@ -262,7 +266,7 @@
     \fontsize{20pt}{16pt}\selectfont
     {\bfseries XÂY DỰNG HỆ THỐNG XỬ LÝ VÀ PHÂN TÍCH DỮ LIỆU GIAO DỊCH NGÂN HÀNG} %Điền tên chủ đề
 
-    \vspace{2cm}
+    \vspace{1cm}
     
     \fontsize{16pt}{16pt}\selectfont
     {\bfseries NGUYỄN HỒNG NHUNG}
@@ -275,7 +279,7 @@
     {\textbf{Chuyên ngành:} \fontsize{15pt}{16pt}\selectfont Hệ thống thông tin quản lý}
 \end{center}
 
-\vspace{2cm}
+\vspace{1.5cm}
 
 \fontsize{14pt}{16pt}\selectfont
 {
@@ -285,7 +289,7 @@
     \end{tabular}
 }
 
-\vspace{3cm}
+\vspace{2cm}
 
 \begin{center}
     \LARGE HÀ NỘI -- 2026
@@ -394,17 +398,17 @@ Phần kết luận tổng hợp lại những giá trị cốt lõi mà nền t
 
 
 
-\vspace{1cm}
-\begin{minipage}{0.5\textwidth}
-\end{minipage}
-\hspace{0.5\textwidth}
-\begin{minipage}{0.5\textwidth}
-    \noindent\begin{center}
-        \textit{Hà Nội, tháng 1 năm 2026} \\
-        Tác giả đồ án\\ \vspace{2cm}
-        \textbf{Nguyễn Hồng Nhung}
-    \end{center}   
-\end{minipage}
+% \vspace{1cm}
+% \begin{minipage}{0.5\textwidth}
+% \end{minipage}
+% \hspace{0.5\textwidth}
+% \begin{minipage}{0.5\textwidth}
+%     \noindent\begin{center}
+%         \textit{Hà Nội, tháng 1 năm 2026} \\
+%         Tác giả đồ án\\ \vspace{2cm}
+%         \textbf{Nguyễn Hồng Nhung}
+%     \end{center}   
+% \end{minipage}
 
 \newpage
 \tableofcontents % Mục lục
@@ -418,21 +422,48 @@ Phần kết luận tổng hợp lại những giá trị cốt lõi mà nền t
 \listoftables % Danh sách bảng
 \hypersetup{bookmarksdepth=3}
 
-\newpage
 \chapter*{Bảng ký hiệu và chữ viết tắt}
 \addcontentsline{toc}{chapter}{\bfseries Bảng ký hiệu và chữ viết tắt}
 
-\begin{tabular}
-    {@{\hspace{-0.1cm}} l @{\hspace{1.2cm}}p{11.5cm}l}
-    Dim & Dimension - chiều dữ liệu\\
-    OLAP & Online Analytical Processing\\
-    OLTP & Online Transactional Processing\\
-    ETL & Extract, Transform, Load\\
-    
+\begin{longtable}{@{\hspace{-0.1cm}} l @{\hspace{1.2cm}} p{11.5cm}}
+    AI    & Artificial Intelligence - trí tuệ nhân tạo\\
+    API   & Application Programming Interface - giao diện lập trình ứng dụng\\
+    Ad-hoc & Truy vấn/phân tích tùy biến, phát sinh tức thời theo nhu cầu cụ thể\\
 
-
-
-\end{tabular}
+    BI    & Business Intelligence \\
+    CCCD  & Căn cước công dân\\
+    CDC   & Change Data Capture - thu thập dữ liệu thay đổi\\
+    CLAHE & Contrast Limited Adaptive Histogram Equalization - cân bằng histogram thích ứng (tiền xử lý ảnh)\\
+    CRM   & Customer Relationship Management - quản lý quan hệ khách hàng\\
+    DAG   & Directed Acyclic Graph - đồ thị có hướng không chu trình (luồng điều phối Airflow)\\
+    DATN  & Đồ án tốt nghiệp\\
+    dbt   & data build tool - công cụ biến đổi dữ liệu\\
+    Dim   & Dimension - chiều dữ liệu\\
+    DQ    & Data Quality - kiểm tra chất lượng dữ liệu\\
+    DWH   & Data Warehouse - kho dữ liệu\\
+    ELT   & Extract, Load, Transform - trích xuất, nạp, biến đổi\\
+    ETL   & Extract, Transform, Load - trích xuất, biến đổi, nạp\\
+    HSV   & Hue-Saturation-Value - không gian màu HSV\\
+    KPI   & Key Performance Indicator - chỉ số hiệu suất chính\\
+    KYC   & Know Your Customer - định danh khách hàng\\
+    MCC   & Merchant Category Code - mã phân loại đơn vị chấp nhận thẻ\\
+    MD5   & Message Digest 5 - hàm băm tạo hash key\\
+    MNS   & Minus ghi nhận thay đổi (I/U/D) giữa snapshot hôm nay và snapshot lũy kế\\
+    NHNN  & Ngân hàng Nhà nước\\
+    NĐ-CP & Nghị định do Chính phủ ban hành (ký hiệu văn bản pháp luật)\\
+    ISO 18245 & Tiêu chuẩn quốc tế quy định bộ mã phân loại đơn vị chấp nhận thẻ \\
+    OCR   & Optical Character Recognition - nhận dạng ký tự quang học\\
+    OLAP  & Online Analytical Processing - xử lý phân tích trực tuyến\\
+    OLTP  & Online Transactional Processing - xử lý giao dịch trực tuyến\\
+    PDY   & Previous Day - snapshot lũy kế ngày trước\\
+    PCI DSS & Payment Card Industry Data Security Standard - tiêu chuẩn bảo mật dữ liệu thẻ thanh toán\\
+    ROI   & Region of Interest - vùng quan tâm trên ảnh\\
+    SCD   & Slowly Changing Dimension - chiều dữ liệu thay đổi chậm\\
+    SCD2  & Slowly Changing Dimension Type 2 - SCD loại 2 (lưu lịch sử)\\
+    SQL   & Structured Query Language - ngôn ngữ truy vấn có cấu trúc\\
+    SSIS  & SQL Server Integration Services - công cụ tích hợp dữ liệu của SQL Server\\
+    TDY   & Today - snapshot dữ liệu hôm nay\\
+\end{longtable}
 
 %-----------------------------------------------------
 % MAIN MATTER (Đánh số Ả Rập, Bắt đầu có Header)
@@ -440,27 +471,151 @@ Phần kết luận tổng hợp lại những giá trị cốt lõi mà nền t
 \clearpage
 \pagenumbering{arabic} % Đánh số 1, 2, 3...
 \setcounter{page}{1} % Bắt đầu lại từ trang 1
-\pagestyle{fancy} % Bật header theo yêu cầu (Trái: Chương, Phải: Đồ án, Giữa dưới: số trang)
+% Bật lại header cho phần thân. Phải ĐỊNH NGHĨA LẠI đầy đủ ở đây vì \pagestyle{plain}
+% ở front matter (qua \fancyhf{} trong \fancypagestyle{plain}) đã xóa sạch nội dung header.
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textit{Đồ án tốt nghiệp}} % Trái: Đồ án tốt nghiệp
+\fancyhead[R]{\small\nouppercase{\leftmark}}   % Phải: Chương hiện tại và tên chương
+\fancyfoot[C]{\thepage}                        % Giữa dưới: số trang
+\renewcommand{\headrulewidth}{0.4pt}
 
-% \input{chapter1}
-% \input{chapter2}
-% \input{chapter3}
+\input{chapter1}
+\input{chapter2}
+\input{chapter3}
 \input{chapter4}
+
+\pagestyle{plain} % Hết chương 4: tắt header cho phần Kết luận và các mục sau (chỉ còn số trang)
 
 %-----------------------------------------------------
 % KẾT LUẬN
 %-----------------------------------------------------
 \chapter*{Kết luận}
 \addcontentsline{toc}{chapter}{\bfseries Kết luận}
-% Force update leftmark for unnumbered chapter to show on header
-\markboth{Kết luận}{}
 
-\section*{Đồ án đã đạt được mục tiêu đề ra}
+Xuất phát từ mục tiêu xây dựng một nền tảng dữ liệu thống nhất cho lĩnh vực ngân hàng, có khả năng tích hợp đồng thời dữ liệu có cấu trúc và dữ liệu phi cấu trúc, đồ án đã hoàn thành đầy đủ các mục tiêu đặt ra ban đầu. Cụ thể:
 
+\begin{itemize}
+    \item \textbf{Tích hợp trọn vẹn hai loại dữ liệu.} Đồ án đã xây dựng thành công hai luồng dữ liệu độc lập: một luồng ETL toàn diện xử lý dữ liệu giao dịch có cấu trúc (khách hàng, thẻ, giao dịch) và một luồng tinh gọn trích xuất dữ liệu phi cấu trúc (ảnh Căn cước công dân, Sổ tiết kiệm) bằng công nghệ nhận dạng ký tự quang học (OCR). Hai nguồn dữ liệu vốn rời rạc đã được đưa về cùng một nền tảng quản lý.
+
+    \item \textbf{Hiện thực hóa kiến trúc đa tầng Medallion.} Hệ thống được tổ chức theo ba tầng Bronze -- Silver -- Gold rõ ràng. Tầng Bronze lưu dữ liệu thô; tầng Silver áp dụng mô hình Data Vault 2.0 (Hub -- Link -- Satellite) bảo đảm tính toàn vẹn và khả năng truy vết lịch sử; tầng Gold chuyển hóa sang mô hình đa chiều Star Schema nhằm tối ưu hóa cho phân tích và truy vấn.
+
+    \item \textbf{Giải quyết bài toán nạp dữ liệu gia tăng.} Đồ án đã thiết kế và triển khai chiến lược nạp gia tăng dựa trên cơ chế MNS để bóc tách các thay đổi (thêm mới/cập nhật) theo từng ngày, thay vì nạp lại toàn bộ. Nhờ đó hệ thống xử lý dữ liệu một cách hiệu quả, có tính idempotent và quản lý được lịch sử biến đổi theo mô hình SCD.
+
+    \item \textbf{Tự động hóa và điều phối luồng công việc.} Toàn bộ pipeline có cấu trúc được điều phối tự động bằng Apache Airflow theo lịch định kỳ, kết hợp công cụ dbt để thực hiện các phép biến đổi SQL một cách có kiểm soát và dễ bảo trì.
+
+    \item \textbf{Bảo đảm chất lượng và khả năng giám sát dữ liệu.} Hệ thống tích hợp các bài kiểm tra chất lượng dữ liệu (Data Quality) như kiểm soát giá trị rỗng, trùng lặp khóa, độ trễ cập nhật, cùng hệ thống bảng Audit ghi nhận lịch sử mỗi lần chạy và đánh giá độ tin cậy của kết quả OCR.
+
+    \item \textbf{Trực quan hóa phục vụ ra quyết định.} Dữ liệu đã được làm sạch tại tầng Gold được kết nối với Power BI để xây dựng các báo cáo quản trị (Dashboard) trực quan, hỗ trợ khai thác thông tin và ra quyết định kinh doanh.
+\end{itemize}
+
+Như vậy, đồ án không chỉ dừng lại ở việc đề xuất giải pháp về mặt lý thuyết mà đã triển khai thành một hệ thống hoàn chỉnh, chạy thông suốt từ khâu thu thập dữ liệu nguồn đến khâu trực quan hóa, đáp ứng đầy đủ các yêu cầu chức năng và phi chức năng đã đặt ra trong giai đoạn khảo sát.
+\newpage
 \section*{Kết quả của đồ án}
+
+Sau quá trình nghiên cứu và triển khai, đồ án đã tạo ra một hệ thống nền tảng dữ liệu hoàn chỉnh với các sản phẩm cụ thể sau:
+
+\begin{itemize}
+    \item \textbf{Kho dữ liệu đa tầng hoàn chỉnh.} Hệ thống đã dựng được kho dữ liệu trên SQL Server với bốn lược đồ \texttt{bronze}, \texttt{silver}, \texttt{gold} và \texttt{audit}. Tầng Silver theo mô hình Data Vault gồm 5 Hub, 2 Link và 4 Satellite; tầng Gold theo mô hình Star Schema 
+
+    \item \textbf{Luồng trích xuất dữ liệu phi cấu trúc.} Đồ án đã xây dựng module OCR trích xuất thông tin từ hai loại chứng từ là Căn cước công dân và Sổ tiết kiệm, kèm cơ chế tiền xử lý ảnh và bộ điểm tin cậy ba mức để đánh giá chất lượng kết quả.
+
+    \item \textbf{Hệ thống điều phối tự động.} Ba luồng công việc được đóng gói thành các DAG trên Apache Airflow: pipeline có cấu trúc (Bronze $\rightarrow$ Silver $\rightarrow$ Gold), pipeline kiểm tra chất lượng dữ liệu và pipeline OCR. Mỗi tác vụ đều được bao bọc bởi cơ chế ghi nhật ký Audit, cho phép giám sát số dòng xử lý, thời gian chạy và trạng thái thành công/thất bại của từng bước.
+
+    \item \textbf{Cơ chế bảo đảm chất lượng dữ liệu.} Hệ thống tích hợp các bài kiểm tra như phát hiện trùng lặp khóa chính, kiểm soát giá trị rỗng ở khóa ngoại, kiểm tra độ trễ cập nhật và ngưỡng tin cậy OCR, giúp phát hiện sớm các bất thường trong dữ liệu.
+
+    \item \textbf{Ứng dụng web minh họa.} Đồ án phát triển một ứng dụng web demo cho phép tải lên ảnh chứng từ và trích xuất thông tin trực tuyến với hai lựa chọn engine (PaddleOCR, Groq), kèm trợ lý hỏi đáp về dữ liệu vừa trích xuất.
+
+    \item \textbf{Hệ thống báo cáo trực quan.} Dữ liệu tại tầng Gold được kết nối với Power BI để xây dựng các bảng điều khiển (Dashboard) phân tích giao dịch, hỗ trợ trực quan hóa và khai thác thông tin phục vụ ra quyết định.
+
+    \item \textbf{Giải pháp triển khai linh hoạt.} Toàn bộ hệ thống được đóng gói bằng Docker Compose với hai môi trường Python được cô lập, giải quyết triệt để xung đột tài nguyên giữa engine OCR và bộ công cụ dữ liệu, đồng thời giúp việc cài đặt và vận hành trở nên thuận tiện.
+\end{itemize}
 
 \section*{Kỹ năng đạt được}
 
+Quá trình thực hiện đồ án đã giúp em tích lũy được nhiều kiến thức và kỹ năng chuyên môn có giá trị:
+
+\begin{itemize}
+    \item \textbf{Kỹ năng thiết kế kho dữ liệu.} Hiểu và vận dụng được các mô hình kiến trúc dữ liệu hiện đại như Medallion, Data Vault 2.0 và Star Schema, cũng như chiến lược nạp dữ liệu gia tăng và quản lý lịch sử thay đổi (SCD).
+
+    \item \textbf{Kỹ năng kỹ thuật dữ liệu (Data Engineering).} Thành thạo việc xây dựng pipeline ETL/ELT, sử dụng công cụ dbt để biến đổi dữ liệu theo hướng khai báo và Apache Airflow để điều phối luồng công việc tự động.
+
+    \item \textbf{Kỹ năng xử lý dữ liệu phi cấu trúc.} Nắm được quy trình nhận dạng ký tự quang học (OCR), các kỹ thuật tiền xử lý ảnh và phương pháp đánh giá độ tin cậy của kết quả trích xuất.
+
+    \item \textbf{Kỹ năng lập trình và làm chủ công nghệ.} Củng cố năng lực lập trình Python, làm việc với SQL Server, đóng gói ứng dụng bằng Docker, quản lý mã nguồn với Git
+
+    \item \textbf{Kỹ năng phân tích và trực quan hóa.} Biết cách khảo sát, phân tích yêu cầu nghiệp vụ và sử dụng Power BI để xây dựng báo cáo phục vụ ra quyết định.
+
+    \item \textbf{Kỹ năng làm việc và nghiên cứu độc lập.} Rèn luyện tư duy giải quyết vấn đề một cách hệ thống, khả năng tự tìm hiểu công nghệ mới, quản lý tiến độ và trình bày kết quả nghiên cứu một cách khoa học.
+\end{itemize}
+
 \section*{Hướng phát triển của đồ án trong tương lai}
+
+Mặc dù đã hoàn thành các mục tiêu đề ra, hệ thống vẫn còn nhiều tiềm năng để mở rộng và hoàn thiện trong tương lai:
+
+\begin{itemize}
+    \item \textbf{Nâng cao hiệu năng xử lý OCR.} Triển khai xử lý song song để tăng tốc độ trích xuất khi khối lượng tài liệu lớn, đồng thời bổ sung cơ chế thử lại cho các tài liệu xử lý thất bại.
+
+    \item \textbf{Cải thiện độ chính xác trích xuất.} Tinh chỉnh sâu hơn các bước tiền xử lý ảnh và bổ sung khả năng nhận diện nhiều mẫu (template) chứng từ khác nhau, giúp hệ thống thích ứng với đa dạng định dạng tài liệu trong thực tế.
+
+    \item \textbf{Mở rộng nguồn và loại dữ liệu.} Tích hợp thêm các loại chứng từ ngân hàng khác và kết nối với nhiều hệ thống nguồn, hướng tới mô hình thu thập dữ liệu thay đổi (CDC) theo thời gian thực thay vì nạp theo lô hằng ngày.
+
+    \item \textbf{Hoàn thiện giao diện người dùng.} Phát triển giao diện ứng dụng cho phép người dùng nghiệp vụ dễ dàng theo dõi, kiểm tra và can thiệp, hiệu chỉnh kết quả trích xuất trước khi đưa vào kho dữ liệu.
+
+    \item \textbf{Tăng cường khả năng phân tích nâng cao.} Ứng dụng các mô hình học máy (Machine Learning) trên nền dữ liệu đã được làm sạch để phục vụ các bài toán như phát hiện gian lận giao dịch, phân khúc khách hàng hay dự báo xu hướng.
+
+    \item \textbf{Củng cố vận hành và bảo mật.} Bổ sung cảnh báo tự động khi pipeline gặp sự cố, tăng cường cơ chế phân quyền và bảo vệ dữ liệu nhạy cảm phù hợp với các quy định về an toàn thông tin trong lĩnh vực ngân hàng.
+\end{itemize}
+
+\renewcommand{\bibname}{Tài liệu tham khảo}
+\begin{thebibliography}{99}
+
+% --- Mô hình hóa kho dữ liệu ---
+\bibitem{linstedt2015}
+D. Linstedt and M. Olschimke, \textit{Building a Scalable Data Warehouse with Data Vault 2.0}. Morgan Kaufmann, 2015.
+
+\bibitem{kimball2013}
+R. Kimball and M. Ross, \textit{The Data Warehouse Toolkit: The Definitive Guide to Dimensional Modeling}, 3rd ed. Wiley, 2013.
+
+\bibitem{inmon2005}
+W. H. Inmon, \textit{Building the Data Warehouse}, 4th ed. Wiley, 2005.
+
+\bibitem{databricks_medallion}
+Databricks, ``Medallion Architecture,'' Databricks Documentation. [Trực tuyến]. Địa chỉ: \url{https://docs.databricks.com/aws/en/lakehouse/medallion}. Truy cập: tháng 2/2026.
+
+% --- Công cụ điều phối và biến đổi dữ liệu ---
+\bibitem{airflow_docs}
+Apache Software Foundation, ``Apache Airflow Documentation.'' [Trực tuyến]. Địa chỉ: \url{https://airflow.apache.org/docs/}. Truy cập: tháng 6/2026.
+
+\bibitem{dbt_docs}
+dbt Labs, ``dbt Documentation.'' [Trực tuyến]. Địa chỉ: \url{https://docs.getdbt.com/}. Truy cập: tháng 4/2026.
+
+\bibitem{mssql_docs}
+Microsoft, ``SQL Server Documentation.'' [Trực tuyến]. Địa chỉ: \url{https://learn.microsoft.com/en-us/sql/sql-server/}. Truy cập: tháng 3/2026.
+
+% --- Nhận dạng ký tự và xử lý ảnh ---
+\bibitem{ppocr2020}
+Y. Du \textit{et al.}, ``PP-OCR: A Practical Ultra Lightweight OCR System,'' \textit{arXiv preprint arXiv:2009.09941}, 2020.
+
+\bibitem{paddleocr_repo}
+PaddlePaddle, ``PaddleOCR,'' GitHub repository. [Trực tuyến]. Địa chỉ: \url{https://github.com/PaddlePaddle/PaddleOCR}. Truy cập: tháng 3/2026.
+
+\bibitem{opencv}
+G. Bradski, ``The OpenCV Library,'' \textit{Dr. Dobb's Journal of Software Tools}, 2000. [Trực tuyến]. Địa chỉ: \url{https://docs.opencv.org/}.
+
+% --- Tiêu chuẩn ngành ---
+\bibitem{iso18245}
+International Organization for Standardization, \textit{ISO 18245:2023 -- Retail financial services -- Merchant category codes}. ISO, 2023.
+
+\bibitem{pcidss}
+PCI Security Standards Council, \textit{Payment Card Industry Data Security Standard (PCI DSS), v4.0}, 2022. [Trực tuyến]. Địa chỉ: \url{https://www.pcisecuritystandards.org/}.
+
+\end{thebibliography}
+
+
+
+
+
+
 
 \end{document}

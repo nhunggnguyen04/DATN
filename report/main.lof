@@ -1,0 +1,54 @@
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {1.1}{\ignorespaces Vòng đời dữ liệu}}{5}{figure.caption.5}%
+\contentsline {figure}{\numberline {1.2}{\ignorespaces Tiến trình tiến hóa từ kho dữ liệu truyền thống đến kiến trúc Lakehouse}}{8}{figure.caption.8}%
+\contentsline {figure}{\numberline {1.3}{\ignorespaces Kiến trúc Medallion Architecture}}{10}{figure.caption.10}%
+\contentsline {figure}{\numberline {1.4}{\ignorespaces Mô hình Data Vault 2.0}}{12}{figure.caption.11}%
+\contentsline {figure}{\numberline {1.5}{\ignorespaces Mô hình Data Warehouse: Sơ đồ ngôi sao}}{14}{figure.caption.12}%
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {2.1}{\ignorespaces Mẫu hình ảnh CCCD ngoài thực tế}}{22}{figure.caption.14}%
+\contentsline {figure}{\numberline {2.2}{\ignorespaces Mẫu hình ảnh sổ tiết kiệm ngoài thực tế}}{22}{figure.caption.15}%
+\contentsline {figure}{\numberline {2.3}{\ignorespaces Sơ đồ kiến trúc dữ liệu truyền thống}}{24}{figure.caption.16}%
+\contentsline {figure}{\numberline {2.4}{\ignorespaces Sơ đồ kiến trúc lai (Hybrid) đang chuyển đổi}}{25}{figure.caption.17}%
+\contentsline {figure}{\numberline {2.5}{\ignorespaces Sơ đồ ngăn xếp dữ liệu hiện đại (Modern Data Stack)}}{26}{figure.caption.18}%
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {3.1}{\ignorespaces Kiến trúc luồng xử lý phân tầng của hệ thống}}{31}{figure.caption.19}%
+\contentsline {figure}{\numberline {3.2}{\ignorespaces Mẫu hình ảnh CCCD tự sinh}}{33}{figure.caption.20}%
+\contentsline {figure}{\numberline {3.3}{\ignorespaces Mẫu hình ảnh sổ tiết kiệm tự sinh}}{34}{figure.caption.21}%
+\contentsline {figure}{\numberline {3.4}{\ignorespaces So sánh luồng xử lý ảnh trong pipeline OCR phi cấu trúc}}{35}{figure.caption.22}%
+\contentsline {figure}{\numberline {3.5}{\ignorespaces Kiến trúc tổng quan của hệ thống Pipeline xử lý dữ liệu có cấu trúc}}{37}{figure.caption.23}%
+\contentsline {figure}{\numberline {3.6}{\ignorespaces Kiến trúc OLTP của hệ thống}}{38}{figure.caption.24}%
+\contentsline {figure}{\numberline {3.7}{\ignorespaces Kiến trúc dữ liệu tầng Bronze}}{40}{figure.caption.25}%
+\contentsline {figure}{\numberline {3.8}{\ignorespaces Kiến trúc dữ liệu tầng Silver}}{41}{figure.caption.26}%
+\contentsline {figure}{\numberline {3.9}{\ignorespaces Kiến trúc dữ liệu tầng Gold}}{42}{figure.caption.27}%
+\contentsline {figure}{\numberline {3.10}{\ignorespaces Sơ đồ cấu trúc dữ liệu của Schema Audit}}{44}{figure.caption.28}%
+\contentsline {figure}{\numberline {3.11}{\ignorespaces Sơ đồ workflow của \texttt {banking\_structured\_dag}}}{45}{figure.caption.29}%
+\contentsline {figure}{\numberline {3.12}{\ignorespaces Sơ đồ workflow của \texttt {data\_quality\_dag}}}{46}{figure.caption.30}%
+\contentsline {figure}{\numberline {3.13}{\ignorespaces Sơ đồ workflow của \texttt {ocr\_unstructured\_dag}}}{47}{figure.caption.31}%
+\contentsline {figure}{\numberline {3.14}{\ignorespaces Lịch trình điều phối các DAG trong Apache Airflow}}{48}{figure.caption.32}%
+\contentsline {figure}{\numberline {3.15}{\ignorespaces Hình ảnh cảnh báo được gửi về email cá nhân}}{50}{figure.caption.34}%
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {4.1}{\ignorespaces Hệ quản trị cơ sở dữ liệu SQL Server}}{52}{figure.caption.35}%
+\contentsline {figure}{\numberline {4.2}{\ignorespaces Công cụ điều phối và biến đổi dữ liệu}}{53}{figure.caption.36}%
+\contentsline {figure}{\numberline {4.3}{\ignorespaces Công cụ xử lý ảnh và trích xuất dữ liệu}}{54}{figure.caption.37}%
+\contentsline {figure}{\numberline {4.4}{\ignorespaces Công cụ đóng gói và quản lý môi trường}}{55}{figure.caption.38}%
+\contentsline {figure}{\numberline {4.5}{\ignorespaces Công cụ trực quan hóa dữ liệu}}{55}{figure.caption.39}%
+\contentsline {figure}{\numberline {4.6}{\ignorespaces Quy trình chuẩn hóa hình học trong tiền xử lý ảnh}}{64}{figure.caption.62}%
+\contentsline {figure}{\numberline {4.7}{\ignorespaces Ảnh trước khi xử lý Deskew}}{67}{figure.caption.67}%
+\contentsline {figure}{\numberline {4.8}{\ignorespaces Ảnh sau xử lý deskew}}{67}{figure.caption.68}%
+\contentsline {figure}{\numberline {4.9}{\ignorespaces Xác định khung viền thẻ}}{68}{figure.caption.71}%
+\contentsline {figure}{\numberline {4.10}{\ignorespaces Ảnh sau biến đổi phối cảnh}}{69}{figure.caption.73}%
+\contentsline {figure}{\numberline {4.11}{\ignorespaces Kết quả tự động nhận diện dải màu xanh và căn chỉnh chiều ảnh}}{71}{figure.caption.75}%
+\contentsline {figure}{\numberline {4.12}{\ignorespaces Thẻ sau khi xử lý xác định các vùng ROI}}{72}{figure.caption.78}%
+\contentsline {figure}{\numberline {4.13}{\ignorespaces Ảnh sau tăng cường chất lượng}}{74}{figure.caption.79}%
+\contentsline {figure}{\numberline {4.14}{\ignorespaces Các text box được phát hiện bằng chế độ dự phòng cắt ROI}}{75}{figure.caption.80}%
+\contentsline {figure}{\numberline {4.15}{\ignorespaces Danh sách DAG trên giao diện Apache Airflow}}{78}{figure.caption.81}%
+\contentsline {figure}{\numberline {4.16}{\ignorespaces Graph view của DAG banking\_structured\_dag}}{79}{figure.caption.82}%
+\contentsline {figure}{\numberline {4.17}{\ignorespaces Log chi tiết task trích xuất dữ liệu giao dịch}}{80}{figure.caption.83}%
+\contentsline {figure}{\numberline {4.18}{\ignorespaces Giao diện tải ảnh tài liệu lên hệ thống}}{81}{figure.caption.84}%
+\contentsline {figure}{\numberline {4.19}{\ignorespaces Kết quả trích xuất thông tin CCCD}}{82}{figure.caption.85}%
+\contentsline {figure}{\numberline {4.20}{\ignorespaces Kết quả trích xuất thông tin Sổ tiết kiệm}}{83}{figure.caption.86}%
+\contentsline {figure}{\numberline {4.21}{\ignorespaces Chatbot hỏi đáp về dữ liệu tài liệu đã trích xuất}}{84}{figure.caption.87}%
+\contentsline {figure}{\numberline {4.22}{\ignorespaces Trang tổng quan hệ thống báo cáo Power BI}}{85}{figure.caption.88}%
+\contentsline {figure}{\numberline {4.23}{\ignorespaces Phân tích phân khúc khách hàng}}{86}{figure.caption.89}%
+\contentsline {figure}{\numberline {4.24}{\ignorespaces Phân tích hành vi giao dịch}}{87}{figure.caption.90}%
+\contentsfinish 
