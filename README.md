@@ -45,16 +45,16 @@
 
 ## Công nghệ sử dụng
 
-| Thành phần | Công nghệ |
-|---|---|
-| Orchestration | Apache Airflow 2.9.0 |
-| Transformation | dbt (Data Build Tool) |
-| Database | SQL Server (OLTP nguồn + Data Warehouse đích) |
-| OCR | PaddleOCR + PaddlePaddle 3.2.2 |
-| AI (Web demo) | Google Gemini API · Groq LLaMA |
-| Web demo | Flask |
-| Containerization | Docker Compose |
-| BI | Power BI |
+| Thành phần     | Công nghệ                                      |
+| ---------------- | ------------------------------------------------ |
+| Orchestration    | Apache Airflow 2.9.0                             |
+| Transformation   | dbt (Data Build Tool)                            |
+| Database         | SQL Server (OLTP nguồn + Data Warehouse đích) |
+| OCR              | PaddleOCR + PaddlePaddle 3.2.2                   |
+| AI (Web demo)    | Google Gemini API · Groq LLaMA                  |
+| Web demo         | Flask                                            |
+| Containerization | Docker Compose                                   |
+| BI               | Power BI                                         |
 
 ---
 
@@ -233,11 +233,11 @@ docker compose down
 
 Truy cập Airflow UI: **http://localhost:8080** — tài khoản `admin / admin`
 
-| DAG | Lịch | Mô tả |
-|---|---|---|
+| DAG                        | Lịch             | Mô tả                              |
+| -------------------------- | ----------------- | ------------------------------------ |
 | `banking_structured_dag` | Hàng ngày 02:00 | ETL chính: Bronze → Silver → Gold |
-| `data_quality_dag` | Hàng ngày 04:00 | Kiểm tra chất lượng dữ liệu |
-| `ocr_unstructured_dag` | Thủ công | OCR CCCD và sổ tiết kiệm |
+| `data_quality_dag`       | Hàng ngày 04:00 | Kiểm tra chất lượng dữ liệu    |
+| `ocr_unstructured_dag`   | Thủ công        | OCR CCCD và sổ tiết kiệm         |
 
 ---
 
@@ -245,11 +245,11 @@ Truy cập Airflow UI: **http://localhost:8080** — tài khoản `admin / admin
 
 Web demo cho phép trích xuất thông tin từ ảnh **CCCD** hoặc **Sổ tiết kiệm** với 3 engine AI, kèm chatbot hỏi đáp về dữ liệu đã trích xuất.
 
-| Engine | Yêu cầu |
-|---|---|
-| PaddleOCR | Không cần API key |
-| Google Gemini | Gemini API key |
-| Groq LLaMA | Groq API key |
+| Engine        | Yêu cầu           |
+| ------------- | ------------------- |
+| PaddleOCR     | Không cần API key |
+| Google Gemini | Gemini API key      |
+| Groq LLaMA    | Groq API key        |
 
 ### Cách 1 — Chạy trên host (Gemini & Groq engine)
 
@@ -274,11 +274,11 @@ Truy cập: **http://localhost:5000**
 
 Mỗi entity có cấu trúc 3 bảng Bronze:
 
-| Bảng | Ý nghĩa |
-|---|---|
-| `*_tdy` | Snapshot hôm nay (truncate & load mỗi ngày) |
+| Bảng     | Ý nghĩa                                             |
+| --------- | ----------------------------------------------------- |
+| `*_tdy` | Snapshot hôm nay (truncate & load mỗi ngày)        |
 | `*_pdy` | Snapshot lũy kế (giữ nguyên, dùng để so sánh) |
-| `*_mns` | Change-set: `id` + `operation_flag` (I/U) |
+| `*_mns` | Change-set:`id` + `operation_flag` (I/U)          |
 
 Script MNS so sánh `*_tdy` với `*_pdy`, sinh cờ `I` (Insert) hoặc `U` (Update), rồi upsert `*_tdy` → `*_pdy`. Không sinh cờ `D` ở chế độ chạy theo ngày.
 
@@ -287,21 +287,26 @@ Script MNS so sánh `*_tdy` với `*_pdy`, sinh cờ `I` (Insert) hoặc `U` (Up
 ## Troubleshooting
 
 **Lỗi PaddleOCR trên Windows CPU:**
+
 ```
 RuntimeError: PaddlePaddle encountered an error related to PIR/oneDNN
 ```
+
 → Dùng đúng `paddlepaddle==3.2.2`, không dùng 3.3.x.
 
 **Lỗi kết nối database:**
+
 - Kiểm tra SQL Server đang chạy
 - Đảm bảo database `DATN` đã tồn tại
 - Chạy `python scripts/utils/db_connection.py` để test nhanh
 
 **DAG không xuất hiện trong Airflow UI:**
+
 - Đợi scheduler scan (mặc định 30s)
 - Kiểm tra log: `docker compose logs airflow-scheduler`
 
 **Web demo lỗi "Không tìm thấy script":**
+
 - Đảm bảo `scripts/` đã được mount vào container (xem `docker-compose.yaml`)
 
 ---
@@ -309,3 +314,5 @@ RuntimeError: PaddlePaddle encountered an error related to PIR/oneDNN
 ## Tác giả
 
 Nguyễn Hồng Nhung — nguyenhongnhungtxa@gmail.com
+
+Link dữ liệu tham khảo: [www.kaggle.com/datasets/ealtman2019/credit-card-transactions?resource=download&amp;select=User0_credit_card_transactions.csv](https://www.kaggle.com/datasets/ealtman2019/credit-card-transactions?resource=download&select=User0_credit_card_transactions.csv)

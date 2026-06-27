@@ -268,7 +268,14 @@ with DAG(
     notify = AuditedPythonOperator(
         task_id="notify_team",
         python_callable=notify_success,
-        trigger_rule="all_done",
+        # all_success: mail "✅" chỉ bắn khi MỌI DQ check + report đều pass.
+        # (notify phải nhận trực tiếp các check làm cha, vì trigger_rule chỉ xét cha trực tiếp;
+        #  nếu chỉ nối sau report — vốn all_done nên luôn success — mail sẽ bắn nhầm cả khi check fail.)
+        trigger_rule="all_success",
     )
 
-    wait_for_structured >> [dq_row_drift, dq_freshness, dq_null_fk, dq_dup_pk, dq_ocr] >> report >> notify
+    checks = [dq_row_drift, dq_freshness, dq_null_fk, dq_dup_pk, dq_ocr]
+    # report giữ all_done để LUÔN sinh báo cáo dù check fail; notify all_success nên chỉ chạy khi mọi check pass.
+    wait_for_structured >> checks >> report
+    checks >> notify
+    report >> notify

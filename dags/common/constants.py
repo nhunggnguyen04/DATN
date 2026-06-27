@@ -34,7 +34,6 @@ EMAIL_ONCALL = ["nguyenhongnhungtxa@gmail.com"]
 # ============================================================================
 CONN_SOURCE = "sql_source"
 CONN_TARGET = "sql_target"
-CONN_SLACK  = "slack_alert"
 
 VAR_SKIP_MNS_VALIDATION    = "skip_mns_validation"
 VAR_OCR_CONF_THRESHOLD     = "ocr_conf_threshold"
@@ -44,8 +43,6 @@ VAR_ROW_COUNT_DRIFT_PCT    = "row_count_drift_pct"
 # ============================================================================
 # DEFAULT_ARGS cho DAGs
 # ============================================================================
-from common.callbacks import slack_alert, slack_retry_notice  # noqa: E402
-
 DEFAULT_ARGS = {
     "owner": "nhunggnguyen",
     "depends_on_past": False,
@@ -54,11 +51,10 @@ DEFAULT_ARGS = {
     "retry_exponential_backoff": True,
     "max_retry_delay": timedelta(minutes=30),
     "execution_timeout": timedelta(hours=2),
+    # Thông báo chỉ qua email (đã bỏ Slack): email khi task lỗi và khi retry.
     "email_on_failure": True,
-    "email_on_retry": False,
+    "email_on_retry": True,
     "email": EMAIL_OWNERS,
-    "on_failure_callback": slack_alert,
-    "on_retry_callback": slack_retry_notice,
 }
 
 # ============================================================================

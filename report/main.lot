@@ -1,22 +1,22 @@
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {1.1}{\ignorespaces So sánh phương pháp xử lý Batch và Streaming}}{6}{table.caption.6}%
-\contentsline {table}{\numberline {1.2}{\ignorespaces So sánh quy trình tích hợp dữ liệu ETL và ELT}}{7}{table.caption.7}%
-\contentsline {table}{\numberline {1.3}{\ignorespaces So sánh đặc điểm của Data Warehouse, Data Lake và Lakehouse}}{9}{table.caption.9}%
-\contentsline {table}{\numberline {1.4}{\ignorespaces So sánh các phương pháp Change Data Capture (CDC) phổ biến}}{15}{table.caption.13}%
+\contentsline {table}{\numberline {1.1}{\ignorespaces So sánh phương pháp xử lý Batch và Streaming}}{6}{table.caption.7}%
+\contentsline {table}{\numberline {1.2}{\ignorespaces So sánh quy trình tích hợp dữ liệu ETL và ELT}}{6}{table.caption.8}%
+\contentsline {table}{\numberline {1.3}{\ignorespaces So sánh đặc điểm của Data Warehouse, Data Lake và Lakehouse}}{8}{table.caption.11}%
+\contentsline {table}{\numberline {1.4}{\ignorespaces So sánh các phương pháp Change Data Capture (CDC) phổ biến}}{15}{table.caption.19}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {3.1}{\ignorespaces Cấu hình giới hạn tài nguyên (Pools) trong Apache Airflow}}{49}{table.caption.33}%
+\contentsline {table}{\numberline {3.1}{\ignorespaces Cấu hình giới hạn tài nguyên trong Apache Airflow}}{50}{table.caption.40}%
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {4.1}{\ignorespaces Mapping Bronze $\rightarrow $ Hub}}{58}{table.caption.46}%
-\contentsline {table}{\numberline {4.2}{\ignorespaces Mapping Bronze $\rightarrow $ Link}}{59}{table.caption.48}%
-\contentsline {table}{\numberline {4.3}{\ignorespaces Mapping Bronze $\rightarrow $ sat\_customer\_profile (SCD Type 2)}}{59}{table.caption.50}%
-\contentsline {table}{\numberline {4.4}{\ignorespaces Mapping Bronze $\rightarrow $ sat\_card\_detail (SCD Type 2)}}{60}{table.caption.51}%
-\contentsline {table}{\numberline {4.5}{\ignorespaces Mapping Bronze $\rightarrow $ sat\_transaction\_detail (SCD Type 1)}}{60}{table.caption.52}%
-\contentsline {table}{\numberline {4.6}{\ignorespaces Mapping Bronze $\rightarrow $ sat\_mcc\_detail (SCD Type 1)}}{60}{table.caption.53}%
-\contentsline {table}{\numberline {4.7}{\ignorespaces Mapping Silver $\rightarrow $ dim\_date (sinh động, không có bảng nguồn)}}{61}{table.caption.55}%
-\contentsline {table}{\numberline {4.8}{\ignorespaces Mapping Silver $\rightarrow $ dim\_customer}}{61}{table.caption.56}%
-\contentsline {table}{\numberline {4.9}{\ignorespaces Mapping Silver $\rightarrow $ dim\_card}}{62}{table.caption.57}%
-\contentsline {table}{\numberline {4.10}{\ignorespaces Mapping Silver $\rightarrow $ dim\_merchant}}{62}{table.caption.58}%
-\contentsline {table}{\numberline {4.11}{\ignorespaces Mapping Silver $\rightarrow $ dim\_mcc}}{62}{table.caption.59}%
-\contentsline {table}{\numberline {4.12}{\ignorespaces Mapping Silver $\rightarrow $ fact\_transaction}}{63}{table.caption.61}%
+\contentsline {table}{\numberline {4.1}{\ignorespaces Mapping Bronze $\rightarrow $ Hub}}{59}{table.caption.53}%
+\contentsline {table}{\numberline {4.2}{\ignorespaces Mapping Bronze $\rightarrow $ Link}}{60}{table.caption.55}%
+\contentsline {table}{\numberline {4.3}{\ignorespaces Mapping Bronze $\rightarrow $ sat\_customer\_profile (SCD Type 2)}}{60}{table.caption.57}%
+\contentsline {table}{\numberline {4.4}{\ignorespaces Mapping Bronze $\rightarrow $ sat\_card\_detail (SCD Type 2)}}{61}{table.caption.58}%
+\contentsline {table}{\numberline {4.5}{\ignorespaces Mapping Bronze $\rightarrow $ sat\_transaction\_detail (SCD Type 1)}}{61}{table.caption.59}%
+\contentsline {table}{\numberline {4.6}{\ignorespaces Mapping Bronze $\rightarrow $ sat\_mcc\_detail (SCD Type 1)}}{61}{table.caption.60}%
+\contentsline {table}{\numberline {4.7}{\ignorespaces Mapping Silver $\rightarrow $ dim\_date}}{62}{table.caption.62}%
+\contentsline {table}{\numberline {4.8}{\ignorespaces Mapping Silver $\rightarrow $ dim\_customer}}{62}{table.caption.63}%
+\contentsline {table}{\numberline {4.9}{\ignorespaces Mapping Silver $\rightarrow $ dim\_card}}{63}{table.caption.64}%
+\contentsline {table}{\numberline {4.10}{\ignorespaces Mapping Silver $\rightarrow $ dim\_merchant}}{63}{table.caption.65}%
+\contentsline {table}{\numberline {4.11}{\ignorespaces Mapping Silver $\rightarrow $ dim\_mcc}}{63}{table.caption.66}%
+\contentsline {table}{\numberline {4.12}{\ignorespaces Mapping Silver $\rightarrow $ fact\_transaction}}{64}{table.caption.68}%
 \contentsfinish 

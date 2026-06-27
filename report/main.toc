@@ -1,80 +1,73 @@
-\contentsline {chapter}{Danh s\'ach h\`inh v\~e}{viii}{chapter*.2}%
-\contentsline {chapter}{Danh s\'ach b\h {a}ng}{x}{chapter*.3}%
-\contentsline {chapter}{\bfseries Bảng ký hiệu và chữ viết tắt}{xi}{chapter*.4}%
+\contentsline {chapter}{Danh s\'ach h\`inh v\~e}{vi}{chapter*.2}%
+\contentsline {chapter}{Danh s\'ach b\h {a}ng}{vii}{chapter*.3}%
+\contentsline {chapter}{\bfseries Bảng ký hiệu và chữ viết tắt}{viii}{chapter*.4}%
 \contentsline {chapter}{\numberline {1}Mở đầu và cơ sở lý thuyết}{1}{chapter.1}%
 \contentsline {section}{\numberline {1.1}Đặt vấn đề và lý do chọn đề tài}{1}{section.1.1}%
 \contentsline {section}{\numberline {1.2}Mục tiêu và phạm vi đồ án}{2}{section.1.2}%
 \contentsline {subsection}{\numberline {1.2.1}Mục tiêu nghiên cứu}{2}{subsection.1.2.1}%
 \contentsline {subsection}{\numberline {1.2.2}Phạm vi và giới hạn của đồ án}{3}{subsection.1.2.2}%
 \contentsline {section}{\numberline {1.3}Cơ sở lý thuyết}{4}{section.1.3}%
-\contentsline {subsection}{\numberline {1.3.1}Tổng quan về Data Engineer và kho dữ liệu}{4}{subsection.1.3.1}%
-\contentsline {subsubsection}{\numberline {1.3.1.1}Tổng quan}{4}{subsubsection.1.3.1.1}%
-\contentsline {subsubsection}{\numberline {1.3.1.2}Kho dữ liệu và hệ sinh thái}{7}{subsubsection.1.3.1.2}%
+\contentsline {subsection}{\numberline {1.3.1}Tổng quan kiến thức về kho dữ liệu}{4}{subsection.1.3.1}%
 \contentsline {subsection}{\numberline {1.3.2}Mô hình hóa dữ liệu }{9}{subsection.1.3.2}%
-\contentsline {subsubsection}{\numberline {1.3.2.1}Mô hình: Data Vault 2.0}{10}{subsubsection.1.3.2.1}%
-\contentsline {subsubsection}{\numberline {1.3.2.2}Mô hình chiều (Star Schema)}{12}{subsubsection.1.3.2.2}%
-\contentsline {subsection}{\numberline {1.3.3}Nạp dữ liệu gia tăng (Incremental Loading), CDC và SCD}{14}{subsection.1.3.3}%
-\contentsline {subsubsection}{\numberline {1.3.3.1}Nạp dữ liệu gia tăng (Incremental Loading)}{14}{subsubsection.1.3.3.1}%
-\contentsline {subsubsection}{\numberline {1.3.3.2}Change Data Capture (CDC)}{15}{subsubsection.1.3.3.2}%
-\contentsline {subsubsection}{\numberline {1.3.3.3}Slowly Changing Dimension (SCD)}{15}{subsubsection.1.3.3.3}%
+\contentsline {subsection}{\numberline {1.3.3}Nạp dữ liệu gia tăng, CDC và SCD}{14}{subsection.1.3.3}%
 \contentsline {subsection}{\numberline {1.3.4}Các khái niệm cốt lõi trong bài toán xử lý ảnh và OCR}{16}{subsection.1.3.4}%
 \contentsline {chapter}{\numberline {2}Khảo sát đề tài}{19}{chapter.2}%
 \contentsline {section}{\numberline {2.1}Khảo sát bài toán nghiệp vụ và mô hình dữ liệu}{19}{section.2.1}%
-\contentsline {subsection}{\numberline {2.1.1}Dữ liệu có cấu trúc (Structured Data)}{20}{subsection.2.1.1}%
-\contentsline {subsection}{\numberline {2.1.2}Dữ liệu phi cấu trúc (Unstructured Data)}{21}{subsection.2.1.2}%
-\contentsline {section}{\numberline {2.2}Khảo sát hiện trạng và các vấn đề tồn đọng}{23}{section.2.2}%
-\contentsline {section}{\numberline {2.3}Khảo sát các giải pháp và kiến trúc hiện có}{24}{section.2.3}%
-\contentsline {subsection}{\numberline {2.3.1}Nhóm 1: Kiến trúc truyền thống (Legacy DWH + ETL)}{24}{subsection.2.3.1}%
+\contentsline {subsection}{\numberline {2.1.1}Dữ liệu có cấu trúc}{20}{subsection.2.1.1}%
+\contentsline {subsection}{\numberline {2.1.2}Dữ liệu phi cấu trúc}{20}{subsection.2.1.2}%
+\contentsline {section}{\numberline {2.2}Khảo sát hiện trạng và các vấn đề tồn đọng}{22}{section.2.2}%
+\contentsline {section}{\numberline {2.3}Khảo sát các giải pháp và kiến trúc hiện có}{23}{section.2.3}%
+\contentsline {subsection}{\numberline {2.3.1}Nhóm 1: Kiến trúc truyền thống (Legacy DWH + ETL)}{23}{subsection.2.3.1}%
 \contentsline {subsection}{\numberline {2.3.2}Nhóm 2: Đang chuyển đổi (Hybrid On-prem + Cloud)}{24}{subsection.2.3.2}%
 \contentsline {subsection}{\numberline {2.3.3}Nhóm 3: Kiến trúc hiện đại (Modern Data Stack)}{25}{subsection.2.3.3}%
 \contentsline {subsection}{\numberline {2.3.4}Ràng buộc pháp lý đặc thù tại Việt Nam}{26}{subsection.2.3.4}%
 \contentsline {section}{\numberline {2.4}Khảo sát các phương pháp xử lý ảnh hiện có}{27}{section.2.4}%
-\contentsline {section}{\numberline {2.5}Yêu cầu đặt ra đối với hệ thống}{27}{section.2.5}%
-\contentsline {subsection}{\numberline {2.5.1}Yêu cầu chức năng}{27}{subsection.2.5.1}%
-\contentsline {subsection}{\numberline {2.5.2}Yêu cầu phi chức năng}{28}{subsection.2.5.2}%
-\contentsline {chapter}{\numberline {3}Phân tích và thiết kế hệ thống}{29}{chapter.3}%
-\contentsline {section}{\numberline {3.1}Đề xuất kiến trúc giải pháp}{29}{section.3.1}%
-\contentsline {subsection}{\numberline {3.1.1}Lựa chọn kiến trúc tổng thể và chiến lược nạp}{29}{subsection.3.1.1}%
-\contentsline {subsection}{\numberline {3.1.2}Lựa chọn mô hình tổ chức dữ liệu}{30}{subsection.3.1.2}%
-\contentsline {section}{\numberline {3.2}Kiến trúc tổng thể hệ thống}{31}{section.3.2}%
-\contentsline {subsection}{\numberline {3.2.1}Pipeline dữ liệu phi cấu trúc (OCR)}{32}{subsection.3.2.1}%
-\contentsline {subsection}{\numberline {3.2.2}Pipeline dữ liệu có cấu trúc}{37}{subsection.3.2.2}%
-\contentsline {section}{\numberline {3.3}Thiết kế mô hình dữ liệu cho pipeline có cấu trúc}{38}{section.3.3}%
-\contentsline {subsection}{\numberline {3.3.1}Nguồn OLTP}{38}{subsection.3.3.1}%
-\contentsline {subsection}{\numberline {3.3.2}Tầng Bronze}{38}{subsection.3.3.2}%
-\contentsline {subsection}{\numberline {3.3.3}Tầng Silver: Data Vault 2.0}{41}{subsection.3.3.3}%
-\contentsline {subsection}{\numberline {3.3.4}Tầng Gold: Star Schema}{41}{subsection.3.3.4}%
-\contentsline {subsection}{\numberline {3.3.5}Schema Audit}{42}{subsection.3.3.5}%
-\contentsline {section}{\numberline {3.4}Thiết kế cơ chế điều phối (Orchestration)}{44}{section.3.4}%
-\contentsline {subsection}{\numberline {3.4.1}Vận hành và điều phối}{44}{subsection.3.4.1}%
-\contentsline {subsection}{\numberline {3.4.2}Quản lý và giới hạn tài nguyên}{48}{subsection.3.4.2}%
-\contentsline {subsection}{\numberline {3.4.3}Cơ chế cảnh báo tự động (Alerting \& Notifications)}{49}{subsection.3.4.3}%
-\contentsline {chapter}{\numberline {4}Xây dựng chương trình}{51}{chapter.4}%
-\contentsline {section}{\numberline {4.1}Công nghệ sử dụng}{51}{section.4.1}%
-\contentsline {subsection}{\numberline {4.1.1}Hệ quản trị Cơ sở dữ liệu và Kho dữ liệu}{51}{subsection.4.1.1}%
-\contentsline {subsection}{\numberline {4.1.2}Công cụ điều phối và biến đổi dữ liệu}{52}{subsection.4.1.2}%
-\contentsline {subsection}{\numberline {4.1.3}Xử lý ảnh và trích xuất tài liệu}{53}{subsection.4.1.3}%
-\contentsline {subsection}{\numberline {4.1.4}Đóng gói và quản lý môi trường}{54}{subsection.4.1.4}%
-\contentsline {subsection}{\numberline {4.1.5}Trực quan hóa dữ liệu (BI)}{55}{subsection.4.1.5}%
-\contentsline {section}{\numberline {4.2}Quy trình xây dựng Pipeline dữ liệu có cấu trúc}{56}{section.4.2}%
-\contentsline {subsection}{\numberline {4.2.1}Trích xuất và nạp dữ liệu vào tầng Bronze}{56}{subsection.4.2.1}%
-\contentsline {subsection}{\numberline {4.2.2}Biến đổi dữ liệu tầng Silver (Data Vault)}{57}{subsection.4.2.2}%
-\contentsline {subsection}{\numberline {4.2.3}Biến đổi dữ liệu tầng Gold (Star Schema)}{60}{subsection.4.2.3}%
-\contentsline {section}{\numberline {4.3}Quy trình xây dựng Pipeline dữ liệu phi cấu trúc (OCR)}{63}{section.4.3}%
-\contentsline {subsection}{\numberline {4.3.1}Tiền xử lý ảnh }{63}{subsection.4.3.1}%
-\contentsline {paragraph}{Giai đoạn 1: Ước lượng góc nghiêng:}{65}{section*.64}%
-\contentsline {paragraph}{Giai đoạn 2: Xoay ảnh không mất góc:}{66}{section*.65}%
-\contentsline {paragraph}{Giai đoạn 3: Kiểm chứng bằng góc dư:}{66}{section*.66}%
-\contentsline {paragraph}{Giai đoạn 1: Xác định tọa độ bốn góc thẻ:}{68}{section*.70}%
-\contentsline {paragraph}{Giai đoạn 2: Biến đổi phối cảnh: }{68}{section*.72}%
-\contentsline {subsection}{\numberline {4.3.2}Tăng cường chất lượng hình ảnh}{72}{subsection.4.3.2}%
-\contentsline {subsection}{\numberline {4.3.3}Trích xuất văn bản bằng PaddleOCR}{74}{subsection.4.3.3}%
-\contentsline {subsection}{\numberline {4.3.4}Hậu xử lý và làm sạch dữ liệu}{75}{subsection.4.3.4}%
-\contentsline {subsection}{\numberline {4.3.5}Đánh giá độ tin cậy}{76}{subsection.4.3.5}%
-\contentsline {section}{\numberline {4.4}Trực quan hóa và Kết quả triển khai}{77}{section.4.4}%
-\contentsline {subsection}{\numberline {4.4.1}Giao diện điều phối Apache Airflow}{77}{subsection.4.4.1}%
-\contentsline {subsection}{\numberline {4.4.2}Giao diện web demo xử lý tài liệu}{80}{subsection.4.4.2}%
-\contentsline {subsection}{\numberline {4.4.3}Hệ thống báo cáo BI}{84}{subsection.4.4.3}%
-\contentsline {chapter}{\bfseries Kết luận}{88}{chapter*.91}%
-\contentsline {chapter}{Tài liệu tham khảo}{93}{chapter*.95}%
+\contentsline {section}{\numberline {2.5}Yêu cầu đặt ra đối với hệ thống}{28}{section.2.5}%
+\contentsline {subsection}{\numberline {2.5.1}Yêu cầu chức năng}{28}{subsection.2.5.1}%
+\contentsline {subsection}{\numberline {2.5.2}Yêu cầu phi chức năng}{29}{subsection.2.5.2}%
+\contentsline {chapter}{\numberline {3}Phân tích và thiết kế hệ thống}{30}{chapter.3}%
+\contentsline {section}{\numberline {3.1}Đề xuất kiến trúc giải pháp}{30}{section.3.1}%
+\contentsline {subsection}{\numberline {3.1.1}Lựa chọn kiến trúc tổng thể và chiến lược nạp}{30}{subsection.3.1.1}%
+\contentsline {subsection}{\numberline {3.1.2}Lựa chọn mô hình tổ chức dữ liệu}{31}{subsection.3.1.2}%
+\contentsline {section}{\numberline {3.2}Kiến trúc tổng thể hệ thống}{32}{section.3.2}%
+\contentsline {subsection}{\numberline {3.2.1}Pipeline dữ liệu phi cấu trúc (OCR)}{33}{subsection.3.2.1}%
+\contentsline {subsection}{\numberline {3.2.2}Pipeline dữ liệu có cấu trúc}{38}{subsection.3.2.2}%
+\contentsline {section}{\numberline {3.3}Thiết kế mô hình dữ liệu cho pipeline có cấu trúc}{39}{section.3.3}%
+\contentsline {subsection}{\numberline {3.3.1}Nguồn OLTP}{39}{subsection.3.3.1}%
+\contentsline {subsection}{\numberline {3.3.2}Tầng Bronze}{39}{subsection.3.3.2}%
+\contentsline {subsection}{\numberline {3.3.3}Tầng Silver: Data Vault 2.0}{42}{subsection.3.3.3}%
+\contentsline {subsection}{\numberline {3.3.4}Tầng Gold: Star Schema}{42}{subsection.3.3.4}%
+\contentsline {subsection}{\numberline {3.3.5}Schema Audit}{43}{subsection.3.3.5}%
+\contentsline {section}{\numberline {3.4}Thiết kế cơ chế điều phối}{45}{section.3.4}%
+\contentsline {subsection}{\numberline {3.4.1}Vận hành và điều phối}{45}{subsection.3.4.1}%
+\contentsline {subsection}{\numberline {3.4.2}Quản lý và giới hạn tài nguyên}{49}{subsection.3.4.2}%
+\contentsline {subsection}{\numberline {3.4.3}Cơ chế cảnh báo tự động}{50}{subsection.3.4.3}%
+\contentsline {chapter}{\numberline {4}Xây dựng chương trình}{52}{chapter.4}%
+\contentsline {section}{\numberline {4.1}Công nghệ sử dụng}{52}{section.4.1}%
+\contentsline {subsection}{\numberline {4.1.1}Hệ quản trị Cơ sở dữ liệu và Kho dữ liệu}{52}{subsection.4.1.1}%
+\contentsline {subsection}{\numberline {4.1.2}Công cụ điều phối và biến đổi dữ liệu}{53}{subsection.4.1.2}%
+\contentsline {subsection}{\numberline {4.1.3}Xử lý ảnh và trích xuất tài liệu}{54}{subsection.4.1.3}%
+\contentsline {subsection}{\numberline {4.1.4}Đóng gói và quản lý môi trường}{55}{subsection.4.1.4}%
+\contentsline {subsection}{\numberline {4.1.5}Trực quan hóa dữ liệu (BI)}{56}{subsection.4.1.5}%
+\contentsline {section}{\numberline {4.2}Quy trình xây dựng Pipeline dữ liệu có cấu trúc}{57}{section.4.2}%
+\contentsline {subsection}{\numberline {4.2.1}Trích xuất và nạp dữ liệu vào tầng Bronze}{57}{subsection.4.2.1}%
+\contentsline {subsection}{\numberline {4.2.2}Biến đổi dữ liệu tầng Silver (Data Vault)}{58}{subsection.4.2.2}%
+\contentsline {subsection}{\numberline {4.2.3}Biến đổi dữ liệu tầng Gold (Star Schema)}{61}{subsection.4.2.3}%
+\contentsline {section}{\numberline {4.3}Quy trình xây dựng Pipeline dữ liệu phi cấu trúc (OCR)}{64}{section.4.3}%
+\contentsline {subsection}{\numberline {4.3.1}Tiền xử lý ảnh }{64}{subsection.4.3.1}%
+\contentsline {paragraph}{Giai đoạn 1: Ước lượng góc nghiêng:}{66}{section*.71}%
+\contentsline {paragraph}{Giai đoạn 2: Xoay ảnh không mất góc:}{67}{section*.72}%
+\contentsline {paragraph}{Giai đoạn 3: Kiểm chứng bằng góc dư:}{67}{section*.73}%
+\contentsline {paragraph}{Giai đoạn 1: Xác định tọa độ bốn góc thẻ:}{69}{section*.77}%
+\contentsline {paragraph}{Giai đoạn 2: Biến đổi phối cảnh: }{69}{section*.79}%
+\contentsline {subsection}{\numberline {4.3.2}Tăng cường chất lượng hình ảnh}{73}{subsection.4.3.2}%
+\contentsline {subsection}{\numberline {4.3.3}Trích xuất văn bản bằng PaddleOCR}{75}{subsection.4.3.3}%
+\contentsline {subsection}{\numberline {4.3.4}Hậu xử lý và làm sạch dữ liệu}{76}{subsection.4.3.4}%
+\contentsline {subsection}{\numberline {4.3.5}Đánh giá độ tin cậy}{77}{subsection.4.3.5}%
+\contentsline {section}{\numberline {4.4}Trực quan hóa và Kết quả triển khai}{78}{section.4.4}%
+\contentsline {subsection}{\numberline {4.4.1}Giao diện điều phối Apache Airflow}{78}{subsection.4.4.1}%
+\contentsline {subsection}{\numberline {4.4.2}Giao diện web demo xử lý tài liệu}{81}{subsection.4.4.2}%
+\contentsline {subsection}{\numberline {4.4.3}Hệ thống báo cáo BI}{85}{subsection.4.4.3}%
+\contentsline {chapter}{\bfseries Kết luận}{89}{chapter*.98}%
+\contentsline {chapter}{Tài liệu tham khảo}{94}{chapter*.102}%
 \contentsfinish 
